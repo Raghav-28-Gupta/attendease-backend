@@ -6,10 +6,262 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ENUMS
+enum UserRole {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  DROPPED
+  COMPLETED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum SessionType {
+  REGULAR
+  MAKEUP
+  EXTRA
+}
+
+// Models 
+model User {
+  id       String   @id @default(uuid())
+  email    String   @unique
+  password String
+  role     UserRole
+
+  emailVerified        Boolean   @default(false)
+  verificationToken    String?   @unique
+  verificationExpires  DateTime?
+  resetPasswordToken   String?   @unique
+  resetPasswordExpires DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student Student?
+  teacher Teacher?
+
+  @@index([email])
+  @@index([role])
+}
+
+model Student {
+  id        String  @id @default(uuid())
+  userId    String  @unique
+  studentId String  @unique // Roll number
+  firstName String
+  lastName  String
+  phone     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollments       SubjectEnrollment[]
+  attendanceRecords AttendanceRecord[]
+  timetableEntries  TimetableEntry[]
+  fcmTokens         FCMToken[]
+
+  @@index([studentId])
+  @@index([userId])
+}
+
+model Teacher {
+  id         String  @id @default(uuid())
+  userId     String  @unique
+  employeeId String  @unique
+  firstName  String
+  lastName   String
+  department String?
+  phone      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjects           Subject[]
+  attendanceSessions AttendanceSession[]
+
+  @@index([employeeId])
+  @@index([userId])
+}
+
+model Subject {
+  id         String @id @default(uuid())
+  teacherId  String
+  name       String
+  code       String @unique
+  semester   String
+  department String
+
+  // Schedule (optional)
+  scheduleDays String[] // ["MONDAY", "WEDNESDAY", "FRIDAY"]
+  startTime    String? // "09:00:00"
+  endTime      String? // "10:00:00"
+  room         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  teacher            Teacher             @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  enrollments        SubjectEnrollment[]
+  attendanceSessions AttendanceSession[]
+  timetableEntries   TimetableEntry[]
+
+  @@index([code])
+  @@index([teacherId])
+}
+
+model SubjectEnrollment {
+  id             String           @id @default(uuid())
+  studentId      String
+  subjectId      String
+  enrollmentDate DateTime         @default(now())
+  dropDate       DateTime?
+  status         EnrollmentStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId])
+  @@index([studentId])
+  @@index([subjectId])
+  @@index([status])
+}
+
+model AttendanceSession {
+  id        String      @id @default(uuid())
+  subjectId String
+  teacherId String
+  date      DateTime    @db.Date
+  startTime String // "09:00:00"
+  endTime   String // "10:00:00"
+  type      SessionType @default(REGULAR)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  subject Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher Teacher            @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  records AttendanceRecord[]
+  edits   AttendanceEdit[]
+
+  @@index([subjectId])
+  @@index([teacherId])
+  @@index([date])
+}
+
+model AttendanceRecord {
+  id        String           @id @default(uuid())
+  sessionId String
+  studentId String
+  status    AttendanceStatus @default(PRESENT)
+  markedAt  DateTime         @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  edits   AttendanceEdit[]
+
+  @@unique([sessionId, studentId])
+  @@index([sessionId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model AttendanceEdit {
+  id        String           @id @default(uuid())
+  recordId  String
+  sessionId String
+  editedBy  String // Teacher userId
+  oldStatus AttendanceStatus
+  newStatus AttendanceStatus
+  reason    String
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  record  AttendanceRecord  @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([recordId])
+  @@index([sessionId])
+}
+
+model TimetableEntry {
+  id        String  @id @default(uuid())
+  studentId String
+  subjectId String
+  dayOfWeek String // "MONDAY", "TUESDAY", etc.
+  startTime String // "09:00:00"
+  endTime   String // "10:00:00"
+  room      String?
+  professor String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId, dayOfWeek, startTime])
+  @@index([studentId])
+  @@index([dayOfWeek])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+model FCMToken {
+  id        String  @id @default(uuid())
+  studentId String
+  token     String  @unique
+  deviceId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
 }
