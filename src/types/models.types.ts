@@ -114,16 +114,16 @@ export interface CreateTimetableEntryDTO {
 	dayOfWeek: string;
 	startTime: string;
 	endTime: string;
-	room?: string;
-	professor?: string;
+	room: string;
+	professor: string;
 }
 
 export interface BatchTimetableDTO {
 	dayOfWeek: string;
 	startTime: string;
 	endTime: string;
-	room?: string;
-	professor?: string;
+	room: string;
+	professor: string;
 }
 
 // ATTENDANCE TYPES
