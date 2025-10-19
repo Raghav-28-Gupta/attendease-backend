@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// This is your Prisma schema file
+// Documentation: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client-js"
@@ -39,50 +36,58 @@ enum SessionType {
   EXTRA
 }
 
-// Models 
+// CORE MODELS
 model User {
   id       String   @id @default(uuid())
   email    String   @unique
   password String
   role     UserRole
-
-  emailVerified        Boolean   @default(false)
-  verificationToken    String?   @unique
-  verificationExpires  DateTime?
+  
+  // Email verification
+  emailVerified       Boolean   @default(false)
+  verificationToken   String?   @unique
+  verificationExpires DateTime?
+  
+  // Password reset
   resetPasswordToken   String?   @unique
   resetPasswordExpires DateTime?
-
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   // Relations
   student Student?
   teacher Teacher?
-
+  
   @@index([email])
   @@index([role])
+  @@map("users")
 }
 
 model Student {
   id        String  @id @default(uuid())
   userId    String  @unique
-  studentId String  @unique // Roll number
+  studentId String  @unique // Roll number (e.g., "2100123")
   firstName String
   lastName  String
   phone     String?
-
+  
+  // (MANDATORY)
+  batchId   String  // Every student must belong to one batch
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   // Relations
   user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  enrollments       SubjectEnrollment[]
+  batch             Batch               @relation(fields: [batchId], references: [id], onDelete: Restrict)
   attendanceRecords AttendanceRecord[]
-  timetableEntries  TimetableEntry[]
   fcmTokens         FCMToken[]
-
+  
   @@index([studentId])
   @@index([userId])
+  @@index([batchId])
+  @@map("students")
 }
 
 model Teacher {
@@ -93,88 +98,122 @@ model Teacher {
   lastName   String
   department String?
   phone      String?
-
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   // Relations
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   subjects           Subject[]
   attendanceSessions AttendanceSession[]
-
+  
   @@index([employeeId])
   @@index([userId])
+  @@map("teachers")
+}
+
+// BATCH MODEL
+model Batch {
+  id        String @id @default(uuid())
+  subjectId String
+  
+  // Batch identification
+  name      String  
+  code      String  @unique 
+  
+  // Optional metadata
+  capacity  Int?    
+  room      String? 
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  subject            Subject              @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  students           Student[]            // All students in this batch
+  timetableEntries   TimetableEntry[]     // Shared timetable for batch
+  attendanceSessions AttendanceSession[]  // Attendance sessions for this batch
+  
+  @@index([subjectId])
+  @@index([code])
+  @@map("batches")
 }
 
 model Subject {
-  id         String @id @default(uuid())
+  id         String  @id @default(uuid())
   teacherId  String
-  name       String
-  code       String @unique
-  semester   String
-  department String
-
-  // Schedule (optional)
-  scheduleDays String[] // ["MONDAY", "WEDNESDAY", "FRIDAY"]
-  startTime    String? // "09:00:00"
-  endTime      String? // "10:00:00"
-  room         String?
-
+  name       String  
+  code       String  @unique  
+  semester   String  
+  department String  
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   // Relations
-  teacher            Teacher             @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  enrollments        SubjectEnrollment[]
+  teacher            Teacher              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  batches            Batch[]              // Subject can have multiple batches
   attendanceSessions AttendanceSession[]
-  timetableEntries   TimetableEntry[]
-
+  
   @@index([code])
   @@index([teacherId])
+  @@map("subjects")
 }
 
-model SubjectEnrollment {
-  id             String           @id @default(uuid())
-  studentId      String
-  subjectId      String
-  enrollmentDate DateTime         @default(now())
-  dropDate       DateTime?
-  status         EnrollmentStatus @default(ACTIVE)
 
+// TIMETABLE MODEL (Batch-Level)
+model TimetableEntry {
+  id      String @id @default(uuid())
+  batchId String 
+  
+  // Schedule details
+  dayOfWeek String  // "MONDAY", "TUESDAY", etc.
+  startTime String  // "09:00:00"
+  endTime   String  // "10:00:00"
+  room      String 
+  professor String 
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   // Relations
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, subjectId])
-  @@index([studentId])
-  @@index([subjectId])
-  @@index([status])
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  
+  // Prevent duplicate entries: Same batch can't have overlapping slots
+  @@unique([batchId, dayOfWeek, startTime])
+  @@index([batchId])
+  @@index([dayOfWeek])
+  @@map("timetable_entries")
 }
 
+
+// ATTENDANCE MODELS
 model AttendanceSession {
   id        String      @id @default(uuid())
   subjectId String
   teacherId String
+  batchId   String      // Session is for specific batch
+  
   date      DateTime    @db.Date
-  startTime String // "09:00:00"
-  endTime   String // "10:00:00"
+  startTime String      
+  endTime   String      
   type      SessionType @default(REGULAR)
-
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   // Relations
   subject Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   teacher Teacher            @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  batch   Batch              @relation(fields: [batchId], references: [id], onDelete: Cascade)
   records AttendanceRecord[]
   edits   AttendanceEdit[]
-
+  
   @@index([subjectId])
   @@index([teacherId])
+  @@index([batchId])
   @@index([date])
+  @@map("attendance_sessions")
 }
 
 model AttendanceRecord {
@@ -183,85 +222,68 @@ model AttendanceRecord {
   studentId String
   status    AttendanceStatus @default(PRESENT)
   markedAt  DateTime         @default(now())
-
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   // Relations
   session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   student Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
   edits   AttendanceEdit[]
-
+  
   @@unique([sessionId, studentId])
   @@index([sessionId])
   @@index([studentId])
   @@index([status])
+  @@map("attendance_records")
 }
 
 model AttendanceEdit {
   id        String           @id @default(uuid())
   recordId  String
   sessionId String
-  editedBy  String // Teacher userId
+  editedBy  String           // Teacher userId
   oldStatus AttendanceStatus
   newStatus AttendanceStatus
   reason    String
-
+  
   createdAt DateTime @default(now())
-
+  
   // Relations
   record  AttendanceRecord  @relation(fields: [recordId], references: [id], onDelete: Cascade)
   session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
+  
   @@index([recordId])
   @@index([sessionId])
+  @@map("attendance_edits")
 }
 
-model TimetableEntry {
-  id        String  @id @default(uuid())
-  studentId String
-  subjectId String
-  dayOfWeek String // "MONDAY", "TUESDAY", etc.
-  startTime String // "09:00:00"
-  endTime   String // "10:00:00"
-  room      String?
-  professor String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-
-  @@unique([studentId, subjectId, dayOfWeek, startTime])
-  @@index([studentId])
-  @@index([dayOfWeek])
-}
-
+// SUPPORTING MODELS  (will figure out later why it is needed)
 model RefreshToken {
   id        String   @id @default(uuid())
   userId    String
   token     String   @unique
   expiresAt DateTime
-
+  
   createdAt DateTime @default(now())
-
+  
   @@index([userId])
   @@index([token])
+  @@map("refresh_tokens")
 }
 
-model FCMToken {
-  id        String  @id @default(uuid())
+model FCMToken {     // (will figure out later why it is needed)
+  id        String   @id @default(uuid())
   studentId String
-  token     String  @unique
+  token     String   @unique
   deviceId  String?
-
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
+  
   // Relations
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
+  
   @@index([studentId])
+  @@map("fcm_tokens")
 }
