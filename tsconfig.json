@@ -35,7 +35,8 @@
       "@services/*": ["./src/services/*"],
       "@utils/*": ["./src/utils/*"],
       "@routes/*": ["./src/routes/*"],
-      "@types/*": ["./src/types/*"]
+      "@local-types/*": ["./src/types/*"],
+      "@models/*": ["./src/models/*"],
   }
 },
   "include": ["src/**/*"],
