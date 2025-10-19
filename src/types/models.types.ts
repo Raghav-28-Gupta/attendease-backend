@@ -90,9 +90,9 @@ export interface StudentWithBatch extends Student {
 }
 
 export interface ImportStudentDTO {
-	studentId: string;
-	firstName: string;
-	lastName: string;
+	student_id: string;
+	first_name: string;
+	last_name: string;
 	email: string;
 	phone?: string;
 }

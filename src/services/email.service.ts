@@ -2,6 +2,29 @@ import { emailTransporter, EMAIL_FROM } from "@config/email";
 import logger from "@utils/logger";
 
 export class EmailService {
+
+	static async sendEmail(mailOptions: {
+		from?: string;
+		to: string;
+		subject: string;
+		html: string;
+	}): Promise<void> {
+		const options = {
+			from: mailOptions.from || EMAIL_FROM,
+			to: mailOptions.to,
+			subject: mailOptions.subject,
+			html: mailOptions.html,
+		};
+
+		try {
+			await emailTransporter.sendMail(options);
+			logger.info(`Email sent to ${mailOptions.to}`);
+		} catch (error) {
+			logger.error("Failed to send email:", error);
+			throw error;
+		}
+	}
+	
 	static async sendVerificationEmail(
 		email: string,
 		firstName: string,
