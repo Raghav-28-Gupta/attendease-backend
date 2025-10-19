@@ -73,7 +73,7 @@ export interface StudentBasic {
 	studentId: string;
 	firstName: string;
 	lastName: string;
-	phone?: string;
+	phone?: string | null;
 }
 
 export interface StudentWithBatch extends Student {
