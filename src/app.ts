@@ -3,7 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { errorHandler } from "@middleware/errorHandler";
 import { generalLimiter } from "@middleware/rateLimiter";
-import authRoutes from "@routes/auth.routes";
+import routes from "@routes/index"; // Import main routes
 import logger from "@utils/logger";
 
 const app: Express = express();
@@ -39,7 +39,7 @@ app.get("/health", (req, res) => {
 });
 
 // API routes
-app.use("/api/auth", authRoutes);
+app.use("/api", routes); // ✅ Use centralized routes
 
 // 404 handler
 app.use("*", (req, res) => {

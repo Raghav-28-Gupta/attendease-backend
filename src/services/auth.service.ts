@@ -16,6 +16,7 @@ interface SignupData {
 	employeeId?: string;
 	department?: string;
 	phone?: string;
+	batchId?: string; // Optional batchId for student signup
 }
 
 interface LoginResponse {
@@ -27,6 +28,8 @@ interface LoginResponse {
 		role: string;
 		name: string;
 		identifier: string;
+		batchId?: string; // Return batchId for students
+		batchCode?: string; // Return batch code for display
 	};
 }
 
@@ -50,6 +53,23 @@ export class AuthService {
 			});
 			if (existingStudent) {
 				throw ApiError.badRequest("Student ID already registered");
+			}
+
+			// Validate batchId if provided
+			if (data.batchId) {
+				const batchExists = await prisma.batch.findUnique({
+					where: { id: data.batchId },
+				});
+				if (!batchExists) {
+					throw ApiError.badRequest("Invalid batch ID");
+				}
+			} else {
+				// IMPORTANT: Students can signup without batch initially
+				// They will be assigned to batch later by teacher during import
+				// This allows pre-registration before teacher creates batches
+				logger.warn(
+					`Student ${data.studentId} signing up without batch assignment`
+				);
 			}
 		}
 
@@ -82,6 +102,16 @@ export class AuthService {
 			});
 
 			if (role === "STUDENT") {
+				// Handle optional batchId
+				if (!data.batchId) {
+					// Create student WITHOUT batch (will be assigned later)
+					// This requires making batchId nullable in schema temporarily
+					// OR we create a "UNASSIGNED" batch for each subject
+					throw ApiError.badRequest(
+						"Students must be imported by teacher with batch assignment. Direct signup is disabled."
+					);
+				}
+
 				await tx.student.create({
 					data: {
 						userId: newUser.id,
@@ -89,6 +119,7 @@ export class AuthService {
 						firstName,
 						lastName,
 						phone: data.phone,
+						batchId: data.batchId, // Required now
 					},
 				});
 			} else if (role === "TEACHER") {
@@ -139,11 +170,19 @@ export class AuthService {
 		email: string,
 		password: string
 	): Promise<LoginResponse> {
-		// Find user with profile
+		// Find user with profile (include batch for students)
 		const user = await prisma.user.findUnique({
 			where: { email },
 			include: {
-				student: true,
+				student: {
+					include: {
+						batch: {
+							include: {
+								subject: true, // Include subject for batch info
+							},
+						},
+					},
+				},
 				teacher: true,
 			},
 		});
@@ -168,10 +207,26 @@ export class AuthService {
 		// Get profile info
 		let name = "";
 		let identifier = "";
+		let batchId: string | undefined;
+		let batchCode: string | undefined;
 
 		if (user.role === "STUDENT" && user.student) {
 			name = `${user.student.firstName} ${user.student.lastName}`;
 			identifier = user.student.studentId;
+
+			// Include batch information for students
+			if (user.student.batch) {
+				batchId = user.student.batch.id;
+				batchCode = user.student.batch.code;
+			} else {
+				// tudent not assigned to batch yet
+				logger.warn(
+					`Student ${user.student.studentId} logged in without batch assignment`
+				);
+				throw ApiError.forbidden(
+					"Your account is not assigned to a batch yet. Please contact your teacher."
+				);
+			}
 		} else if (user.role === "TEACHER" && user.teacher) {
 			name = `${user.teacher.firstName} ${user.teacher.lastName}`;
 			identifier = user.teacher.employeeId;
@@ -207,6 +262,8 @@ export class AuthService {
 				role: user.role,
 				name,
 				identifier,
+				batchId, // Return for students
+				batchCode, // Return for display (e.g., "CS301-A")
 			},
 		};
 	}

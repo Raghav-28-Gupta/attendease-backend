@@ -328,7 +328,7 @@ export class TimetableService {
 	static async getTodayClasses(studentId: string) {
 		const today = new Date()
 			.toLocaleDateString("en-US", { weekday: "long" })
-			.toUpperCase();
+			.toUpperCase();  // assuming DB stores day of the week in uppercase
 
 		const student = await prisma.student.findUnique({
 			where: { id: studentId },

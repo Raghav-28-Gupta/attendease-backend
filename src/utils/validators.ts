@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 // Auth validators
-export const signupSchema = z
-	.object({
-		body: z.object({
+export const signupSchema = z.object({
+	body: z
+		.object({
 			email: z.string().email("Invalid email format"),
 			password: z
 				.string()
@@ -18,25 +18,31 @@ export const signupSchema = z
 			role: z.enum(["STUDENT", "TEACHER"], {
 				message: "Role must be STUDENT or TEACHER",
 			}),
-		}),
-		firstName: z.string().min(1, "First name is required"),
-		lastName: z.string().min(1, "Last name is required"),
-		studentId: z.string().optional(),
-		employeeId: z.string().optional(),
-		department: z.string().optional(),
-	})
-	.refine(
-		(data) => {
-			if (data.body.role === "STUDENT") return !!data.studentId;
-			if (data.body.role === "TEACHER") return !!data.employeeId;
-			return true;
-		},
-		{
-			message:
-				"Student ID required for students, Employee ID required for teachers",
-			path: ["studentId", "employeeId"],
-		}
-	);
+			firstName: z.string().min(1, "First name is required"),
+			lastName: z.string().min(1, "Last name is required"),
+			studentId: z.string().optional(),
+			employeeId: z.string().optional(),
+			department: z.string().optional(),
+			phone: z.string().optional(),
+			batchId: z.string().uuid("Invalid batch ID").optional(), // 🔴 NEW
+		})
+		.refine(
+			(data) => {
+				if (data.role === "STUDENT") {
+					// Students created via import will have batchId
+					// Manual signup blocked in service layer
+					return !!data.studentId;
+				}
+				if (data.role === "TEACHER") return !!data.employeeId;
+				return true;
+			},
+			{
+				message:
+					"Student ID required for students, Employee ID required for teachers",
+				path: ["studentId", "employeeId"],
+			}
+		),
+});
 
 export const loginSchema = z.object({
 	body: z.object({
@@ -50,7 +56,6 @@ export const verifyEmailSchema = z.object({
 		token: z.string().min(1, "Verification token is required"),
 	}),
 });
-
 
 // SUBJECT VALIDATORS
 export const createSubjectSchema = z.object({
