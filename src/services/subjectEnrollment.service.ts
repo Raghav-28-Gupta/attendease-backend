@@ -4,6 +4,7 @@ import logger from "@utils/logger";
 import type {
 	EnrollBatchesDTO,
 	SubjectEnrollmentWithBatch,
+     UpdateSubjectEnrollmentDTO,
 } from "@local-types/models.types";
 
 export class SubjectEnrollmentService {
@@ -51,7 +52,7 @@ export class SubjectEnrollmentService {
 						batchId,
 						teacherId: teacher.id,
 						semester: semester ?? subject.semester,
-                              status: "ACTIVE",
+						status: "ACTIVE",
 					},
 					update: {
 						status: "ACTIVE",
@@ -257,4 +258,79 @@ export class SubjectEnrollmentService {
 
 		return enrollments;
 	}
+
+	// ...existing code...
+
+	/**
+	 * Update enrollment details (teacher, status, semester, etc.)
+	 */
+	static async updateEnrollment(
+		enrollmentId: string,
+		teacherUserId: string | undefined,
+		data: UpdateSubjectEnrollmentDTO
+	): Promise<SubjectEnrollmentWithBatch> {
+		// Get enrollment with authorization check
+		const enrollment = await this.getEnrollmentById(
+			enrollmentId,
+			teacherUserId
+		);
+
+		// Validate new teacher if changing
+		if (data.teacherId) {
+			const newTeacher = await prisma.teacher.findUnique({
+				where: { id: data.teacherId },
+			});
+
+			if (!newTeacher) {
+				throw ApiError.notFound("Teacher not found");
+			}
+		}
+
+		// Update enrollment
+		const updated = await prisma.subjectEnrollment.update({
+			where: { id: enrollmentId },
+			data: {
+				teacherId: data.teacherId,
+				semester: data.semester,
+				status: data.status,
+			},
+			include: {
+				batch: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+				subject: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						semester: true,
+					},
+				},
+				teacher: {
+					select: {
+						id: true,
+						employeeId: true,
+						firstName: true,
+						lastName: true,
+					},
+				},
+				_count: {
+					select: {
+						attendanceSessions: true,
+					},
+				},
+			},
+		});
+
+		return updated;
+	}
+
+	// ...existing code...
 }
