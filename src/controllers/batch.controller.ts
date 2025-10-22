@@ -2,17 +2,17 @@ import type { Request, Response } from "express";
 import { BatchService } from "@services/batch.service";
 import { asyncHandler } from "@utils/asyncHandler";
 import type { CreateBatchDTO, UpdateBatchDTO } from "@local-types/models.types";
+import { ApiError } from "@/utils/ApiError";
 
 export class BatchController {
 	/**
 	 * POST /api/batches
-	 * Create new batch for existing subject
+	 * Create new batch
 	 */
 	static createBatch = asyncHandler(async (req: Request, res: Response) => {
-		const teacherId = req.user!.userId;
 		const data: CreateBatchDTO = req.body;
 
-		const batch = await BatchService.createBatch(teacherId, data);
+		const batch = await BatchService.createBatch(data);
 
 		res.status(201).json({
 			success: true,
@@ -22,14 +22,35 @@ export class BatchController {
 	});
 
 	/**
+	 * GET /api/batches
+	 * Get all batches (optionally filter by department)
+	 */
+	static getAllBatches = asyncHandler(async (req: Request, res: Response) => {
+		const { department } = req.query;
+
+		const batches = department
+			? await BatchService.getBatchesByDepartment(department as string)
+			: await BatchService.getAllBatches();
+
+		res.json({
+			success: true,
+			count: batches.length,
+			data: batches,
+		});
+	});
+
+	/**
 	 * GET /api/batches/:batchId
-	 * Get batch details with students
+	 * Get batch with full details
 	 */
 	static getBatchById = asyncHandler(async (req: Request, res: Response) => {
 		const { batchId } = req.params;
-		const teacherId = req.user!.userId;
 
-		const batch = await BatchService.getBatchById(batchId!, teacherId);
+		if (!batchId) {
+			throw ApiError.badRequest("Batch ID is required");
+		}
+
+		const batch = await BatchService.getBatchById(batchId);
 
 		res.json({
 			success: true,
@@ -38,37 +59,18 @@ export class BatchController {
 	});
 
 	/**
-	 * GET /api/subjects/:subjectId/batches
-	 * Get all batches for a subject
-	 */
-	static getSubjectBatches = asyncHandler(
-		async (req: Request, res: Response) => {
-			const { subjectId } = req.params;
-			const teacherId = req.user!.userId;
-
-			const batches = await BatchService.getSubjectBatches(
-				subjectId!,
-				teacherId
-			);
-
-			res.json({
-				success: true,
-				count: batches.length,
-				data: batches,
-			});
-		}
-	);
-
-	/**
 	 * PUT /api/batches/:batchId
 	 * Update batch
 	 */
 	static updateBatch = asyncHandler(async (req: Request, res: Response) => {
 		const { batchId } = req.params;
-		const teacherId = req.user!.userId;
 		const data: UpdateBatchDTO = req.body;
 
-		const batch = await BatchService.updateBatch(batchId!, teacherId, data);
+		if (!batchId) {
+			throw ApiError.badRequest("Batch ID is required");
+		}
+
+		const batch = await BatchService.updateBatch(batchId, data);
 
 		res.json({
 			success: true,
@@ -83,9 +85,12 @@ export class BatchController {
 	 */
 	static deleteBatch = asyncHandler(async (req: Request, res: Response) => {
 		const { batchId } = req.params;
-		const teacherId = req.user!.userId;
 
-		const result = await BatchService.deleteBatch(batchId!, teacherId);
+		if (!batchId) {
+			throw ApiError.badRequest("Batch ID is required");
+		}
+
+		const result = await BatchService.deleteBatch(batchId);
 
 		res.json({
 			success: true,
@@ -95,17 +100,17 @@ export class BatchController {
 
 	/**
 	 * GET /api/batches/:batchId/students
-	 * Get all students in a batch
+	 * Get all students in batch
 	 */
 	static getBatchStudents = asyncHandler(
 		async (req: Request, res: Response) => {
 			const { batchId } = req.params;
-			const teacherId = req.user!.userId;
 
-			const students = await BatchService.getBatchStudents(
-				batchId!,
-				teacherId
-			);
+			if (!batchId) {
+				throw ApiError.badRequest("Batch ID is required");
+			}
+
+			const students = await BatchService.getBatchStudents(batchId);
 
 			res.json({
 				success: true,
