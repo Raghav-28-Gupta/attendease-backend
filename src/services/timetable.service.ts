@@ -185,6 +185,13 @@ export class TimetableService {
 			throw ApiError.notFound("Student not found");
 		}
 
+		// Check if student has a batch assigned
+		if (!student.batch) {
+			throw ApiError.badRequest(
+				"Student is not assigned to any batch. Please contact your teacher."
+			);
+		}
+
 		return {
 			batch: {
 				id: student.batch.id,
@@ -347,6 +354,13 @@ export class TimetableService {
 
 		if (!student) {
 			throw ApiError.notFound("Student not found");
+		}
+
+		// Check if student has a batch assigned
+		if (!student.batch) {
+			throw ApiError.badRequest(
+				"Student is not assigned to any batch. Please contact your teacher."
+			);
 		}
 
 		return {
