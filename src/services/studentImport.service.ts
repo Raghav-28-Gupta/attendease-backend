@@ -38,11 +38,10 @@ export class StudentImportService {
 
 		const headers = lines[0]!.split(",").map((h) => h.trim().toLowerCase());
 
-		// Validate headers
 		const requiredHeaders = [
-			"student_id",
-			"first_name",
-			"last_name",
+			"studentId",
+			"firstName",
+			"lastName",
 			"email",
 		];
 		const missingHeaders = requiredHeaders.filter(
@@ -82,26 +81,39 @@ export class StudentImportService {
 	 */
 	static async importStudentsToBatch(
 		batchId: string,
-		teacherId: string,
+		teacherUserId: string, // ✅ Keep teacher parameter for authorization
 		students: ImportStudentDTO[]
 	): Promise<ImportResult> {
-		// Verify teacher owns the batch
-		const batch = await prisma.batch.findUnique({
-			where: { id: batchId },
+		// ✅ Verify teacher teaches this batch (via SubjectEnrollment)
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher profile not found");
+		}
+
+		// ✅ Check if teacher has any subject enrollments with this batch
+		const enrollment = await prisma.subjectEnrollment.findFirst({
+			where: {
+				batchId,
+				teacherId: teacher.id,
+				status: "ACTIVE",
+			},
 			include: {
-				subject: {
-					include: { teacher: true },
-				},
+				batch: true,
+				subject: true,
+				teacher: true,
 			},
 		});
 
-		if (!batch) {
-			throw ApiError.notFound("Batch not found");
+		if (!enrollment) {
+			throw ApiError.forbidden(
+				"You do not teach any subjects to this batch"
+			);
 		}
 
-		if (batch.subject.teacher.userId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this batch");
-		}
+		const batch = enrollment.batch;
 
 		// Check capacity
 		const currentCount = await prisma.student.count({
@@ -127,28 +139,27 @@ export class StudentImportService {
 			if (!studentData) {
 				throw new Error("Student data is undefined");
 			}
-			const rowNumber = i + 2; // +2 because of 0-index and header row
+			const rowNumber = i + 2;
 
 			try {
 				// Validate data
 				csvStudentSchema.parse(studentData);
 
-				// Check if student_id already exists
+				// Check duplicates
 				const existingStudent = await prisma.student.findUnique({
-					where: { studentId: studentData.student_id },
+					where: { studentId: studentData.studentId },
 				});
 
 				if (existingStudent) {
 					result.failed++;
 					result.errors.push({
 						row: rowNumber,
-						studentId: studentData.student_id,
+						studentId: studentData.studentId,
 						error: "Student ID already exists",
 					});
 					continue;
 				}
 
-				// Check if email already exists
 				const existingUser = await prisma.user.findUnique({
 					where: { email: studentData.email },
 				});
@@ -157,7 +168,7 @@ export class StudentImportService {
 					result.failed++;
 					result.errors.push({
 						row: rowNumber,
-						studentId: studentData.student_id,
+						studentId: studentData.studentId,
 						error: "Email already registered",
 					});
 					continue;
@@ -191,9 +202,9 @@ export class StudentImportService {
 					const student = await tx.student.create({
 						data: {
 							userId: user.id,
-							studentId: studentData.student_id,
-							firstName: studentData.first_name,
-							lastName: studentData.last_name,
+							studentId: studentData.studentId,
+							firstName: studentData.firstName,
+							lastName: studentData.lastName,
 							phone: studentData.phone || null,
 							batchId: batchId,
 						},
@@ -202,41 +213,42 @@ export class StudentImportService {
 					return { user, student };
 				});
 
-				// Send welcome email with credentials
+				// ✅ Send welcome email with enrollment context
 				try {
 					await this.sendWelcomeEmail(
 						studentData.email,
-						studentData.first_name,
-						studentData.student_id,
+						studentData.firstName,
+						studentData.studentId,
 						tempPassword,
 						verificationToken,
-						batch.code,        // 🔴 NEW: Pass batch code
-						batch.subject.name // 🔴 NEW: Pass subject name
+						batch.code,
+						batch.name,
+						enrollment.subject.name, // ✅ Which subject
+						`${enrollment.teacher.firstName} ${enrollment.teacher.lastName}` // ✅ Which teacher
 					);
 				} catch (emailError) {
 					logger.error(
 						`Failed to send email to ${studentData.email}:`,
 						emailError
 					);
-					// Don't fail the import if email fails
 				}
 
 				result.successful++;
 				result.students.push({
 					id: newStudent.student.id,
-					studentId: studentData.student_id,
-					name: `${studentData.first_name} ${studentData.last_name}`,
+					studentId: studentData.studentId,
+					name: `${studentData.firstName} ${studentData.lastName}`,
 					email: studentData.email,
 				});
 
 				logger.info(
-					`Student imported: ${studentData.student_id} to batch ${batch.code}`
+					`Student imported: ${studentData.studentId} to batch ${batch.code} by teacher ${teacher.employeeId}`
 				);
 			} catch (error: any) {
 				result.failed++;
 				result.errors.push({
 					row: rowNumber,
-					studentId: studentData.student_id,
+					studentId: studentData.studentId,
 					error: error.message || "Unknown error",
 				});
 			}
@@ -258,8 +270,10 @@ export class StudentImportService {
 		studentId: string,
 		tempPassword: string,
 		verificationToken: string,
-		batchCode: string, // 🔴 NEW: Include batch info
-		subjectName: string // 🔴 NEW: Include subject info
+		batchCode: string,
+		batchName: string,
+		subjectName: string, // ✅ Added subject context
+		teacherName: string // ✅ Added teacher context
 	): Promise<void> {
 		const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
 		const loginUrl = `${process.env.FRONTEND_URL}/login`;
@@ -267,12 +281,12 @@ export class StudentImportService {
 		const mailOptions = {
 			from: process.env.EMAIL_FROM,
 			to: email,
-			subject: "Welcome to AttendEase - Account Created by Teacher",
+			subject: `Welcome to AttendEase - ${subjectName} (${batchCode})`,
 			html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <h2>Welcome to AttendEase, ${firstName}! 🎓</h2>
         
-        <p>Your teacher has created an account for you in <strong>${subjectName} (${batchCode})</strong>.</p>
+        <p>Your teacher <strong>${teacherName}</strong> has enrolled you in <strong>${subjectName}</strong> for batch <strong>${batchName} (${batchCode})</strong>.</p>
         
         <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <h3 style="margin-top: 0;">📝 Your Login Credentials</h3>
@@ -284,6 +298,18 @@ export class StudentImportService {
             <tr>
               <td style="padding: 8px 0;"><strong>Email:</strong></td>
               <td style="padding: 8px 0;"><code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px;">${email}</code></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;"><strong>Batch:</strong></td>
+              <td style="padding: 8px 0;"><strong>${batchCode}</strong></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;"><strong>Subject:</strong></td>
+              <td style="padding: 8px 0;">${subjectName}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;"><strong>Teacher:</strong></td>
+              <td style="padding: 8px 0;">${teacherName}</td>
             </tr>
             <tr>
               <td style="padding: 8px 0;"><strong>Temporary Password:</strong></td>
@@ -337,24 +363,37 @@ export class StudentImportService {
 	 */
 	static async addSingleStudent(
 		batchId: string,
-		teacherId: string,
+		teacherUserId: string, // ✅ Keep authorization
 		data: ImportStudentDTO & { password: string }
 	) {
-		// Verify teacher owns the batch
-		const batch = await prisma.batch.findUnique({
-			where: { id: batchId },
+		// ✅ Verify teacher authorization
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher profile not found");
+		}
+
+		const enrollment = await prisma.subjectEnrollment.findFirst({
+			where: {
+				batchId,
+				teacherId: teacher.id,
+				status: "ACTIVE",
+			},
 			include: {
-				subject: { include: { teacher: true } },
+				batch: true,
+				subject: true,
 			},
 		});
 
-		if (!batch) {
-			throw ApiError.notFound("Batch not found");
+		if (!enrollment) {
+			throw ApiError.forbidden(
+				"You do not teach any subjects to this batch"
+			);
 		}
 
-		if (batch.subject.teacher.userId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this batch");
-		}
+		const batch = enrollment.batch;
 
 		// Check capacity
 		const currentCount = await prisma.student.count({
@@ -367,7 +406,7 @@ export class StudentImportService {
 
 		// Check duplicates
 		const existingStudent = await prisma.student.findUnique({
-			where: { studentId: data.student_id },
+			where: { studentId: data.studentId },
 		});
 
 		if (existingStudent) {
@@ -384,8 +423,6 @@ export class StudentImportService {
 
 		// Hash password
 		const hashedPassword = await bcrypt.hash(data.password, 10);
-
-		// Generate verification token
 		const verificationToken = crypto.randomBytes(32).toString("hex");
 		const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -404,18 +441,14 @@ export class StudentImportService {
 			const student = await tx.student.create({
 				data: {
 					userId: user.id,
-					studentId: data.student_id,
-					firstName: data.first_name,
-					lastName: data.last_name,
+					studentId: data.studentId,
+					firstName: data.firstName,
+					lastName: data.lastName,
 					phone: data.phone,
 					batchId: batchId,
 				},
 				include: {
-					batch: {
-						include: {
-							subject: true,
-						},
-					},
+					batch: true,
 				},
 			});
 
@@ -425,12 +458,12 @@ export class StudentImportService {
 		// Send verification email
 		await EmailService.sendVerificationEmail(
 			data.email,
-			data.first_name,
+			data.firstName,
 			verificationToken
 		);
 
 		logger.info(
-			`Student added manually: ${data.student_id} to batch ${batch.code}`
+			`Student added manually: ${data.studentId} to batch ${batch.code}`
 		);
 
 		return newStudent.student;
@@ -442,23 +475,35 @@ export class StudentImportService {
 	static async removeStudentFromBatch(
 		batchId: string,
 		studentId: string,
-		teacherId: string
+		teacherUserId: string // ✅ Keep authorization
 	) {
-		// Verify teacher owns the batch
-		const batch = await prisma.batch.findUnique({
-			where: { id: batchId },
+		// ✅ Verify teacher authorization
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher profile not found");
+		}
+
+		const enrollment = await prisma.subjectEnrollment.findFirst({
+			where: {
+				batchId,
+				teacherId: teacher.id,
+				status: "ACTIVE",
+			},
 			include: {
-				subject: { include: { teacher: true } },
+				batch: true,
 			},
 		});
 
-		if (!batch) {
-			throw ApiError.notFound("Batch not found");
+		if (!enrollment) {
+			throw ApiError.forbidden(
+				"You do not teach any subjects to this batch"
+			);
 		}
 
-		if (batch.subject.teacher.userId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this batch");
-		}
+		const batch = enrollment.batch;
 
 		// Find student
 		const student = await prisma.student.findUnique({
