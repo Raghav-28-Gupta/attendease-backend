@@ -49,15 +49,6 @@ export class AuthService {
 			);
 		}
 
-		// Check if email exists
-		const existingUser = await prisma.user.findUnique({
-			where: { email },
-		});
-
-		if (existingUser) {
-			throw ApiError.badRequest("Email already registered");
-		}
-
 		// Teacher-specific validation
 		if (role === "TEACHER") {
 			if (!data.employeeId) {
