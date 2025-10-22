@@ -1,7 +1,6 @@
 import { z } from "zod";
 
-// Auth validators
-// Updated signup schema - Teachers only
+// AUTH VALIDATORS
 export const signupSchema = z.object({
 	body: z.object({
 		email: z.string().email("Invalid email format"),
@@ -13,15 +12,15 @@ export const signupSchema = z.object({
 			.regex(/[0-9]/, "Password must contain number")
 			.regex(/[^A-Za-z0-9]/, "Password must contain special character"),
 		role: z.literal("TEACHER", {
-				message:
-					"Only teachers can signup directly. Students are added by teachers.",
-			}),
-		}), //CHANGED: Only TEACHER allowed
+			message:
+				"Only teachers can signup directly. Students are added by teachers.",
+		}),
 		firstName: z.string().min(1, "First name is required"),
 		lastName: z.string().min(1, "Last name is required"),
 		employeeId: z.string().min(1, "Employee ID is required"),
 		department: z.string().optional(),
 		phone: z.string().optional(),
+	}),
 });
 
 export const loginSchema = z.object({
@@ -37,6 +36,12 @@ export const verifyEmailSchema = z.object({
 	}),
 });
 
+export const refreshTokenSchema = z.object({
+	body: z.object({
+		refreshToken: z.string().min(1, "Refresh token is required"),
+	}),
+});
+
 // SUBJECT VALIDATORS
 export const createSubjectSchema = z.object({
 	body: z.object({
@@ -48,15 +53,8 @@ export const createSubjectSchema = z.object({
 			.regex(/^[A-Z0-9]+$/, "Code must be uppercase alphanumeric"),
 		semester: z.string().min(1, "Semester is required"),
 		department: z.string().min(1, "Department is required"),
-		batches: z
-			.array(
-				z.object({
-					name: z.string().min(1, "Batch name is required"),
-					capacity: z.number().int().positive().optional(),
-					room: z.string().optional(),
-				})
-			)
-			.min(1, "At least one batch is required"),
+		credits: z.number().int().positive().optional(), // ADDED
+		// REMOVED: batches array - now enrolled separately
 	}),
 });
 
@@ -68,6 +66,7 @@ export const updateSubjectSchema = z.object({
 		name: z.string().min(1).max(100).optional(),
 		semester: z.string().min(1).optional(),
 		department: z.string().min(1).optional(),
+		credits: z.number().int().positive().optional(),
 	}),
 });
 
@@ -79,11 +78,18 @@ export const subjectIdSchema = z.object({
 
 // BATCH VALIDATORS
 export const createBatchSchema = z.object({
+	// REPLACED - No more subjectId
 	body: z.object({
-		subjectId: z.string().uuid("Invalid subject ID"),
-		name: z.string().min(1, "Batch name is required").max(50),
+		code: z
+			.string()
+			.min(1, "Batch code is required")
+			.max(20)
+			.regex(/^[A-Z0-9]+$/i, "Code must be alphanumeric"),
+		name: z.string().min(1, "Batch name is required").max(100),
+		year: z.string().min(1, "Year is required"),
+		department: z.string().min(1, "Department is required"),
 		capacity: z.number().int().positive().optional(),
-		room: z.string().max(50).optional(),
+		classRoom: z.string().max(50).optional(),
 	}),
 });
 
@@ -92,9 +98,9 @@ export const updateBatchSchema = z.object({
 		batchId: z.string().uuid("Invalid batch ID"),
 	}),
 	body: z.object({
-		name: z.string().min(1).max(50).optional(),
+		name: z.string().min(1).max(100).optional(),
 		capacity: z.number().int().positive().optional(),
-		room: z.string().max(50).optional(),
+		classRoom: z.string().max(50).optional(),
 	}),
 });
 
@@ -104,10 +110,102 @@ export const batchIdSchema = z.object({
 	}),
 });
 
+// SUBJECT ENROLLMENT VALIDATORS (NEW)
+export const createSubjectEnrollmentSchema = z.object({
+	// NEW - Single enrollment
+	body: z.object({
+		subjectId: z.string().uuid("Invalid subject ID"),
+		batchId: z.string().uuid("Invalid batch ID"),
+		teacherId: z.string().uuid("Invalid teacher ID"), // Required
+		semester: z.string().optional(),
+		room: z.string().max(50).optional(),
+	}),
+});
+
+export const enrollBatchesSchema = z.object({
+	// FIXED - Added teacherId
+	body: z.object({
+		subjectId: z.string().uuid("Invalid subject ID"),
+		batchIds: z
+			.array(z.string().uuid("Invalid batch ID"))
+			.min(1, "At least one batch required"),
+		teacherId: z.string().uuid("Invalid teacher ID"), // ADDED - Required
+		semester: z.string().optional(),
+		room: z.string().optional(), // ADDED
+	}),
+});
+
+export const updateSubjectEnrollmentSchema = z.object({
+	// NEW
+	params: z.object({
+		enrollmentId: z.string().uuid("Invalid enrollment ID"),
+	}),
+	body: z.object({
+		teacherId: z.string().uuid("Invalid teacher ID").optional(),
+		semester: z.string().optional(),
+		room: z.string().max(50).optional(),
+		status: z.enum(["ACTIVE", "DROPPED", "COMPLETED"]).optional(),
+	}),
+});
+
+export const subjectEnrollmentIdSchema = z.object({
+	params: z.object({
+		enrollmentId: z.string().uuid("Invalid enrollment ID"),
+	}),
+});
+
+export const subjectBatchesSchema = z.object({
+	// NEW
+	params: z.object({
+		subjectId: z.string().uuid("Invalid subject ID"),
+	}),
+	query: z
+		.object({
+			includeStats: z.enum(["true", "false"]).optional(),
+		})
+		.optional(),
+});
+
+export const batchSubjectsSchema = z.object({
+	// NEW
+	params: z.object({
+		batchId: z.string().uuid("Invalid batch ID"),
+	}),
+	query: z
+		.object({
+			includeTeachers: z.enum(["true", "false"]).optional(),
+		})
+		.optional(),
+});
+
 // STUDENT IMPORT VALIDATORS
+
 export const importStudentsSchema = z.object({
 	params: z.object({
 		batchId: z.string().uuid("Invalid batch ID"),
+	}),
+});
+
+export const addStudentManuallySchema = z.object({
+	// NEW
+	params: z.object({
+		batchId: z.string().uuid("Invalid batch ID"),
+	}),
+	body: z.object({
+		studentId: z.string().min(1, "Student ID is required"),
+		firstName: z.string().min(1, "First name is required"),
+		lastName: z.string().min(1, "Last name is required"),
+		email: z.string().email("Invalid email format"),
+		phone: z.string().optional(),
+		password: z.string().min(8, "Password must be at least 8 characters"),
+	}),
+});
+
+export const removeStudentSchema = z.object({
+	// NEW
+	params: z.object({
+		batchId: z.string().uuid("Invalid batch ID"),
+		studentId: z.string().uuid("Invalid student ID"),
 	}),
 });
 
@@ -134,9 +232,13 @@ const DAYS_OF_WEEK = [
 const TIME_REGEX = /^([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/;
 
 export const createTimetableEntrySchema = z.object({
+	// UPDATED - Added subjectEnrollmentId
 	body: z
 		.object({
 			batchId: z.string().uuid("Invalid batch ID"),
+			subjectEnrollmentId: z
+				.string()
+				.uuid("Invalid subject enrollment ID"), // ADDED
 			dayOfWeek: z.enum(DAYS_OF_WEEK, {
 				message: "Invalid day of week",
 			}),
@@ -146,7 +248,8 @@ export const createTimetableEntrySchema = z.object({
 			endTime: z
 				.string()
 				.regex(TIME_REGEX, "Time must be in HH:MM:SS format"),
-			room: z.string().max(50).optional(),
+			classRoom: z.string().max(50).optional(), // Changed from 'room'
+			type: z.string().max(50).optional(), // ADDED
 			professor: z.string().max(100).optional(),
 		})
 		.refine(
@@ -162,7 +265,23 @@ export const createTimetableEntrySchema = z.object({
 		),
 });
 
+export const updateTimetableEntrySchema = z.object({
+	// NEW
+	params: z.object({
+		entryId: z.string().uuid("Invalid timetable entry ID"),
+	}),
+	body: z.object({
+		dayOfWeek: z.enum(DAYS_OF_WEEK).optional(),
+		startTime: z.string().regex(TIME_REGEX).optional(),
+		endTime: z.string().regex(TIME_REGEX).optional(),
+		classRoom: z.string().max(50).optional(),
+		type: z.string().max(50).optional(),
+		professor: z.string().max(100).optional(),
+	}),
+});
+
 export const bulkCreateTimetableSchema = z.object({
+	// UPDATED
 	params: z.object({
 		batchId: z.string().uuid("Invalid batch ID"),
 	}),
@@ -170,10 +289,14 @@ export const bulkCreateTimetableSchema = z.object({
 		entries: z
 			.array(
 				z.object({
+					subjectEnrollmentId: z
+						.string()
+						.uuid("Invalid subject enrollment ID"), // ADDED
 					dayOfWeek: z.enum(DAYS_OF_WEEK),
 					startTime: z.string().regex(TIME_REGEX),
 					endTime: z.string().regex(TIME_REGEX),
-					room: z.string().optional(),
+					classRoom: z.string().optional(),
+					type: z.string().optional(),
 					professor: z.string().optional(),
 				})
 			)
@@ -184,5 +307,58 @@ export const bulkCreateTimetableSchema = z.object({
 export const timetableIdSchema = z.object({
 	params: z.object({
 		entryId: z.string().uuid("Invalid timetable entry ID"),
+	}),
+});
+
+// ATTENDANCE VALIDATORS (NEW)
+export const createAttendanceSessionSchema = z.object({
+	// NEW
+	body: z.object({
+		subjectEnrollmentId: z.string().uuid("Invalid subject enrollment ID"), // Changed from subjectId
+		date: z
+			.string()
+			.regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+		startTime: z
+			.string()
+			.regex(TIME_REGEX, "Time must be in HH:MM:SS format"),
+		endTime: z
+			.string()
+			.regex(TIME_REGEX, "Time must be in HH:MM:SS format"),
+		type: z.enum(["REGULAR", "MAKEUP", "EXTRA"]).optional(),
+	}),
+});
+
+export const markAttendanceSchema = z.object({
+	// NEW
+	params: z.object({
+		sessionId: z.string().uuid("Invalid session ID"),
+	}),
+	body: z.object({
+		records: z
+			.array(
+				z.object({
+					studentId: z.string().uuid("Invalid student ID"),
+					status: z.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED"]),
+				})
+			)
+			.min(1, "At least one attendance record required"),
+	}),
+});
+
+export const attendanceSessionIdSchema = z.object({
+	// NEW
+	params: z.object({
+		sessionId: z.string().uuid("Invalid session ID"),
+	}),
+});
+
+export const editAttendanceSchema = z.object({
+	// NEW
+	params: z.object({
+		recordId: z.string().uuid("Invalid attendance record ID"),
+	}),
+	body: z.object({
+		status: z.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED"]),
+		reason: z.string().min(1, "Reason is required"),
 	}),
 });

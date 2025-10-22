@@ -113,7 +113,13 @@ export interface TeacherWithEnrollments extends Teacher {
 export interface SubjectEnrollmentWithDetails extends SubjectEnrollment {
 	batch: BatchBasic;
 	subject: SubjectBasic;
-	teacher: TeacherBasic; //  FIXED: Added teacher info
+	teacher: {  // Change from 'Teacher' to 'teacher' (lowercase)
+        id: string;
+        employeeId: string;
+        firstName: string;
+        lastName: string;
+        department?: string | null;
+     };
 	_count?: {
 		attendanceSessions: number;
 		timetableEntries: number;

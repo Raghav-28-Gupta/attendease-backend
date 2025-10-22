@@ -3,84 +3,91 @@ import { ApiError } from "@utils/ApiError";
 import logger from "@utils/logger";
 import type {
 	CreateBatchDTO,
-	UpdateBatchDTO,
-	BatchWithRelations,
+	BatchWithStudents,
 } from "@local-types/models.types";
 
 export class BatchService {
 	/**
-	 * Create new batch for existing subject
+	 * Create new batch (student division)
 	 */
-	static async createBatch(
-		teacherId: string,
-		data: CreateBatchDTO
-	): Promise<BatchWithRelations> {
-		// Verify teacher owns the subject
-		const subject = await prisma.subject.findUnique({
-			where: { id: data.subjectId },
+	static async createBatch(data: CreateBatchDTO): Promise<BatchWithStudents> {
+		// Check if batch code already exists
+		const existing = await prisma.batch.findUnique({
+			where: { code: data.code },
 		});
 
-		if (!subject) {
-			throw ApiError.notFound("Subject not found");
+		if (existing) {
+			throw ApiError.badRequest(`Batch code ${data.code} already exists`);
 		}
 
-		if (subject.teacherId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this subject");
-		}
-
-		// Generate batch code
-		const batchCode = `${subject.code}-${data.name.toUpperCase().replace(/\s+/g, "")}`;
-
-		// Check if batch code exists
-		const existingBatch = await prisma.batch.findUnique({
-			where: { code: batchCode },
-		});
-
-		if (existingBatch) {
-			throw ApiError.badRequest(`Batch code ${batchCode} already exists`);
-		}
-
-		// Create batch
 		const batch = await prisma.batch.create({
-			data: {
-				subjectId: data.subjectId,
-				name: data.name,
-				code: batchCode,
-				capacity: data.capacity,
-				room: data.room,
-			},
+			data,
 			include: {
-				subject: true,
 				students: true,
-				timetableEntries: true,
+				_count: {
+					select: {
+						students: true,
+						subjectEnrollments: true,
+					},
+				},
 			},
 		});
 
-		logger.info(`Batch created: ${batchCode}`);
+		logger.info(`Batch created: ${data.code}`);
 
 		return batch;
 	}
 
 	/**
-	 * Get batch details with students
+	 * Get all batches
 	 */
-	static async getBatchById(
-		batchId: string,
-		teacherId?: string
-	): Promise<BatchWithRelations> {
+	static async getAllBatches() {
+		const batches = await prisma.batch.findMany({
+			include: {
+				_count: {
+					select: {
+						students: true,
+						subjectEnrollments: true,
+					},
+				},
+			},
+			orderBy: { code: "asc" },
+		});
+
+		return batches;
+	}
+
+	/**
+	 * Get batch by ID with full details
+	 */
+	static async getBatchById(batchId: string): Promise<BatchWithStudents> {
 		const batch = await prisma.batch.findUnique({
 			where: { id: batchId },
 			include: {
-				subject: {
-					include: {
-						teacher: true,
-					},
-				},
 				students: {
 					orderBy: { studentId: "asc" },
 				},
-				timetableEntries: {
-					orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+				subjectEnrollments: {
+					include: {
+						subject: true, // Just the subject, no nested teacher
+						batch: true, // Include batch
+						teacher: {
+							// Teacher from enrollment
+							select: {
+								id: true,
+								firstName: true,
+								lastName: true,
+								employeeId: true,
+								department: true,
+							},
+						},
+					},
+				},
+				_count: {
+					select: {
+						students: true,
+						subjectEnrollments: true,
+					},
 				},
 			},
 		});
@@ -89,90 +96,42 @@ export class BatchService {
 			throw ApiError.notFound("Batch not found");
 		}
 
-		// Verify ownership if teacherId provided
-		if (teacherId && batch.subject.teacherId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this batch");
-		}
-
-		return batch as BatchWithRelations;
-	}
-
-	/**
-	 * Get all batches for a subject
-	 */
-	static async getSubjectBatches(subjectId: string, teacherId: string) {
-		// Verify ownership
-		const subject = await prisma.subject.findUnique({
-			where: { id: subjectId },
-		});
-
-		if (!subject) {
-			throw ApiError.notFound("Subject not found");
-		}
-
-		if (subject.teacherId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this subject");
-		}
-
-		const batches = await prisma.batch.findMany({
-			where: { subjectId },
-			include: {
-				_count: {
-					select: {
-						students: true,
-						timetableEntries: true,
-						attendanceSessions: true,
-					},
-				},
-			},
-			orderBy: { name: "asc" },
-		});
-
-		return batches;
+		return batch; 
 	}
 
 	/**
 	 * Update batch
 	 */
-	static async updateBatch(
-		batchId: string,
-		teacherId: string,
-		data: UpdateBatchDTO
-	) {
-		const batch = await this.getBatchById(batchId, teacherId);
+	static async updateBatch(batchId: string, data: Partial<CreateBatchDTO>) {
+		const batch = await prisma.batch.findUnique({
+			where: { id: batchId },
+		});
 
-		// If name is changing, regenerate code
-		let updateData: any = { ...data };
+		if (!batch) {
+			throw ApiError.notFound("Batch not found");
+		}
 
-		if (data.name && data.name !== batch.name) {
-			const newCode = `${batch.subject.code}-${data.name
-				.toUpperCase()
-				.replace(/\s+/g, "")}`;
-
-			// Check if new code exists
+		// If code is changing, check for duplicates
+		if (data.code && data.code !== batch.code) {
 			const existing = await prisma.batch.findUnique({
-				where: { code: newCode },
+				where: { code: data.code },
 			});
 
-			if (existing && existing.id !== batchId) {
+			if (existing) {
 				throw ApiError.badRequest(
-					`Batch code ${newCode} already exists`
+					`Batch code ${data.code} already exists`
 				);
 			}
-
-			updateData.code = newCode;
 		}
 
 		const updated = await prisma.batch.update({
 			where: { id: batchId },
-			data: updateData,
+			data,
 			include: {
-				subject: true,
 				_count: {
 					select: {
 						students: true,
-						timetableEntries: true,
-						attendanceSessions: true,
+						subjectEnrollments: true,
 					},
 				},
 			},
@@ -186,10 +145,9 @@ export class BatchService {
 	/**
 	 * Delete batch
 	 */
-	static async deleteBatch(batchId: string, teacherId: string) {
-		const batch = await this.getBatchById(batchId, teacherId);
+	static async deleteBatch(batchId: string) {
+		const batch = await this.getBatchById(batchId);
 
-		// Check if batch has students
 		if (batch.students.length > 0) {
 			throw ApiError.badRequest(
 				`Cannot delete batch with ${batch.students.length} students. Please remove students first.`
@@ -208,9 +166,28 @@ export class BatchService {
 	/**
 	 * Get batch students
 	 */
-	static async getBatchStudents(batchId: string, teacherId: string) {
-		const batch = await this.getBatchById(batchId, teacherId);
-
+	static async getBatchStudents(batchId: string) {
+		const batch = await this.getBatchById(batchId);
 		return batch.students;
+	}
+
+	/**
+	 * Get batches by department
+	 */
+	static async getBatchesByDepartment(department: string) {
+		const batches = await prisma.batch.findMany({
+			where: { department },
+			include: {
+				_count: {
+					select: {
+						students: true,
+						subjectEnrollments: true,
+					},
+				},
+			},
+			orderBy: { code: "asc" },
+		});
+
+		return batches;
 	}
 }
