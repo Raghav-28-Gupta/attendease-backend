@@ -1,152 +1,201 @@
 import prisma from "@config/database";
 import { ApiError } from "@utils/ApiError";
 import logger from "@utils/logger";
-import type {
-	CreateSubjectDTO,
-	UpdateSubjectDTO,
-	SubjectWithRelations,
-} from "@local-types/models.types";
+import type { CreateSubjectDTO, SubjectWithEnrollments } from "@local-types/models.types";
 
 export class SubjectService {
 	/**
-	 * Create subject with multiple batches
+	 * Create subject (independent entity - no teacher ownership)
 	 */
 	static async createSubject(
-		teacherId: string,
 		data: CreateSubjectDTO
-	): Promise<SubjectWithRelations> {
-		// Check if subject code already exists
-		const existingSubject = await prisma.subject.findUnique({
+	): Promise<SubjectWithEnrollments> {
+		// Check if subject code exists
+		const existing = await prisma.subject.findUnique({
 			where: { code: data.code },
 		});
 
-		if (existingSubject) {
+		if (existing) {
 			throw ApiError.badRequest(
 				`Subject code ${data.code} already exists`
 			);
 		}
 
-		// Create subject with batches in transaction
-		const subject = await prisma.$transaction(async (tx) => {
-			// Create subject
-			const newSubject = await tx.subject.create({
-				data: {
-					teacherId,
-					name: data.name,
-					code: data.code,
-					semester: data.semester,
-					department: data.department,
-				},
-			});
-
-			// Create batches with unique codes
-			const batchPromises = data.batches.map((batch, index) => {
-				const batchCode = `${data.code}-${batch.name
-					.toUpperCase()
-					.replace(/\s+/g, "")}`;
-
-				return tx.batch.create({
-					data: {
-						subjectId: newSubject.id,
-						name: batch.name,
-						code: batchCode,
-						capacity: batch.capacity,
-						room: batch.room,
-					},
-				});
-			});
-
-			const createdBatches = await Promise.all(batchPromises);
-
-			// Return subject with batches
-			return tx.subject.findUnique({
-				where: { id: newSubject.id },
-				include: {
-					teacher: {
-						select: {
-							id: true,
-							firstName: true,
-							lastName: true,
-							employeeId: true,
+		const subject = await prisma.subject.create({
+			data: {
+				code: data.code,
+				name: data.name,
+				semester: data.semester,
+				department: data.department,
+				credits: data.credits,
+				// No teacherId - subjects are independent
+			},
+			include: {
+				subjectEnrollments: {
+					include: {
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								department: true,
+							},
 						},
-					},
-					batches: {
-						include: {
-							_count: {
-								select: {
-									students: true,
-									timetableEntries: true,
-									attendanceSessions: true,
-								},
+						teacher: {
+							select: {
+								id: true,
+								firstName: true,
+								lastName: true,
+								employeeId: true,
+							},
+						},
+						_count: {
+							select: {
+								attendanceSessions: true,
+								timetableEntries: true,
 							},
 						},
 					},
 				},
-			});
+			},
 		});
 
-		logger.info(
-			`Subject created: ${data.code} with ${data.batches.length} batches`
-		);
+		logger.info(`Subject created: ${data.code}`);
 
-		return subject as SubjectWithRelations;
+		return subject;
 	}
 
 	/**
-	 * Get all subjects for a teacher
+	 * Get all subjects (optionally filter by department)
 	 */
-	static async getTeacherSubjects(teacherId: string) {
+	static async getAllSubjects(department?: string) {
 		const subjects = await prisma.subject.findMany({
-			where: { teacherId },
+			where: department ? { department } : undefined,
 			include: {
-				batches: {
+				subjectEnrollments: {
 					include: {
-						_count: {
+						batch: {
 							select: {
-								students: true,
-								timetableEntries: true,
-								attendanceSessions: true,
+								code: true,
+								name: true,
+							},
+						},
+						teacher: {
+							select: {
+								firstName: true,
+								lastName: true,
+								employeeId: true,
 							},
 						},
 					},
-					orderBy: { name: "asc" },
+				},
+				_count: {
+					select: {
+						subjectEnrollments: true,
+					},
 				},
 			},
-			orderBy: { createdAt: "desc" },
+			orderBy: { code: "asc" },
 		});
 
 		return subjects;
 	}
 
 	/**
-	 * Get single subject with details
+	 * Get subjects taught by a specific teacher
 	 */
-	static async getSubjectById(
-		subjectId: string,
-		teacherId?: string
-	): Promise<SubjectWithRelations> {
-		const subject = await prisma.subject.findUnique({
-			where: { id: subjectId },
+	static async getTeacherSubjects(teacherId: string) {
+		// Find teacher by userId
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherId },
 			include: {
-				teacher: {
-					select: {
-						id: true,
-						firstName: true,
-						lastName: true,
-						employeeId: true,
-					},
-				},
-				batches: {
+				subjectEnrollments: {
 					include: {
+						subject: true,
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+							},
+						},
 						_count: {
 							select: {
-								students: true,
-								timetableEntries: true,
 								attendanceSessions: true,
+								timetableEntries: true,
 							},
 						},
 					},
-					orderBy: { name: "asc" },
+				},
+			},
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher profile not found");
+		}
+
+		// Group enrollments by subject
+		const subjectMap = new Map<string, any>();
+
+		teacher.subjectEnrollments.forEach((enrollment) => {
+			const subjectId = enrollment.subject.id;
+
+			if (!subjectMap.has(subjectId)) {
+				subjectMap.set(subjectId, {
+					...enrollment.subject,
+					enrollments: [],
+				});
+			}
+
+			subjectMap.get(subjectId).enrollments.push({
+				id: enrollment.id,
+				batchCode: enrollment.batch.code,
+				batchName: enrollment.batch.name,
+				sessionsCount: enrollment._count.attendanceSessions,
+				timetableCount: enrollment._count.timetableEntries,
+			});
+		});
+
+		return Array.from(subjectMap.values());
+	}
+
+	/**
+	 * Get subject by ID with all enrollments
+	 */
+	static async getSubjectById(
+		subjectId: string
+	): Promise<SubjectWithEnrollments> {
+		const subject = await prisma.subject.findUnique({
+			where: { id: subjectId },
+			include: {
+				subjectEnrollments: {
+					include: {
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								year: true,
+								department: true,
+								capacity: true,
+							},
+						},
+						teacher: {
+							select: {
+								id: true,
+								firstName: true,
+								lastName: true,
+								employeeId: true,
+								department: true,
+							},
+						},
+						_count: {
+							select: {
+								attendanceSessions: true,
+								timetableEntries: true,
+							},
+						},
+					},
 				},
 			},
 		});
@@ -155,12 +204,7 @@ export class SubjectService {
 			throw ApiError.notFound("Subject not found");
 		}
 
-		// Verify ownership if teacherId provided
-		if (teacherId && subject.teacherId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this subject");
-		}
-
-		return subject as SubjectWithRelations;
+		return subject;
 	}
 
 	/**
@@ -168,10 +212,8 @@ export class SubjectService {
 	 */
 	static async updateSubject(
 		subjectId: string,
-		teacherId: string,
-		data: UpdateSubjectDTO
+		data: Partial<CreateSubjectDTO>
 	) {
-		// Verify ownership
 		const subject = await prisma.subject.findUnique({
 			where: { id: subjectId },
 		});
@@ -180,32 +222,27 @@ export class SubjectService {
 			throw ApiError.notFound("Subject not found");
 		}
 
-		if (subject.teacherId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this subject");
+		// If code is changing, check for duplicates
+		if (data.code && data.code !== subject.code) {
+			const existing = await prisma.subject.findUnique({
+				where: { code: data.code },
+			});
+
+			if (existing) {
+				throw ApiError.badRequest(
+					`Subject code ${data.code} already exists`
+				);
+			}
 		}
 
-		// Update subject
 		const updated = await prisma.subject.update({
 			where: { id: subjectId },
 			data,
 			include: {
-				teacher: {
-					select: {
-						id: true,
-						firstName: true,
-						lastName: true,
-						employeeId: true,
-					},
-				},
-				batches: {
+				subjectEnrollments: {
 					include: {
-						_count: {
-							select: {
-								students: true,
-								timetableEntries: true,
-								attendanceSessions: true,
-							},
-						},
+						batch: true,
+						teacher: true,
 					},
 				},
 			},
@@ -217,20 +254,13 @@ export class SubjectService {
 	}
 
 	/**
-	 * Delete subject (and all related data)
+	 * Delete subject
 	 */
-	static async deleteSubject(subjectId: string, teacherId: string) {
-		// Verify ownership
+	static async deleteSubject(subjectId: string) {
 		const subject = await prisma.subject.findUnique({
 			where: { id: subjectId },
 			include: {
-				batches: {
-					include: {
-						_count: {
-							select: { students: true },
-						},
-					},
-				},
+				subjectEnrollments: true,
 			},
 		});
 
@@ -238,23 +268,13 @@ export class SubjectService {
 			throw ApiError.notFound("Subject not found");
 		}
 
-		if (subject.teacherId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this subject");
-		}
-
-		// Check if any batches have students
-		const totalStudents = subject.batches.reduce(
-			(sum, batch) => sum + batch._count.students,
-			0
-		);
-
-		if (totalStudents > 0) {
+		// Check if subject has enrollments
+		if (subject.subjectEnrollments.length > 0) {
 			throw ApiError.badRequest(
-				`Cannot delete subject with ${totalStudents} enrolled students. Please remove students first.`
+				`Cannot delete subject with ${subject.subjectEnrollments.length} batch enrollments. Remove enrollments first.`
 			);
 		}
 
-		// Delete subject (cascades to batches, timetables, sessions)
 		await prisma.subject.delete({
 			where: { id: subjectId },
 		});
@@ -267,34 +287,65 @@ export class SubjectService {
 	/**
 	 * Get subject statistics
 	 */
-	static async getSubjectStats(subjectId: string, teacherId: string) {
-		const subject = await this.getSubjectById(subjectId, teacherId);
+	static async getSubjectStats(subjectId: string) {
+		const subject = await this.getSubjectById(subjectId);
 
 		const stats = {
-			totalBatches: subject.batches.length,
-			totalStudents: subject.batches.reduce(
-				(sum, batch) => sum + batch._count.students,
-				0
-			),
-			totalSessions: subject.batches.reduce(
-				(sum, batch) => sum + batch._count.attendanceSessions,
-				0
-			),
-			batches: subject.batches.map((batch) => ({
-				id: batch.id,
-				name: batch.name,
-				code: batch.code,
-				students: batch._count.students,
-				sessions: batch._count.attendanceSessions,
-				capacity: batch.capacity,
-				utilization: batch.capacity
-					? ((batch._count.students / batch.capacity) * 100).toFixed(
-							1
-					  )
-					: null,
-			})),
+			totalEnrollments: subject.subjectEnrollments.length,
+			totalStudents: 0,
+			totalSessions: 0,
+			enrollments: [] as any[],
 		};
 
+		// Calculate stats for each enrollment
+		for (const enrollment of subject.subjectEnrollments) {
+			const studentCount = await prisma.student.count({
+				where: { batchId: enrollment.batch.id },
+			});
+
+			stats.totalStudents += studentCount;
+			stats.totalSessions += enrollment._count?.attendanceSessions || 0;
+
+			stats.enrollments.push({
+				batchCode: enrollment.batch.code,
+				batchName: enrollment.batch.name,
+				teacher: `${enrollment.teacher.firstName} ${enrollment.teacher.lastName}`,
+				students: studentCount,
+				sessions: enrollment._count?.attendanceSessions || 0,
+				capacity: enrollment.batch.capacity,
+				utilization: enrollment.batch.capacity
+					? (
+							(studentCount / enrollment.batch.capacity) *
+							100
+					  ).toFixed(1)
+					: null,
+			});
+		}
+
 		return stats;
+	}
+
+	/**
+	 * Search subjects by code or name
+	 */
+	static async searchSubjects(query: string) {
+		const subjects = await prisma.subject.findMany({
+			where: {
+				OR: [
+					{ code: { contains: query, mode: "insensitive" } },
+					{ name: { contains: query, mode: "insensitive" } },
+				],
+			},
+			include: {
+				_count: {
+					select: {
+						subjectEnrollments: true,
+					},
+				},
+			},
+			take: 10,
+		});
+
+		return subjects;
 	}
 }

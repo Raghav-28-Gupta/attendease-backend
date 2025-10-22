@@ -13,8 +13,6 @@ import type {
 	EnrollmentStatus,
 } from "@prisma/client";
 
-
-
 // BATCH TYPES
 export interface BatchBasic {
 	id: string;
@@ -62,7 +60,7 @@ export interface SubjectBasic {
 
 export interface SubjectWithEnrollments extends Subject {
 	//  FIXED: Removed direct teacher relation
-	subjectEnrollments: SubjectEnrollmentWithDetails[];
+	subjectEnrollments: SubjectEnrollmentBasic[];
 	_count?: {
 		subjectEnrollments: number;
 	};
@@ -113,13 +111,38 @@ export interface TeacherWithEnrollments extends Teacher {
 export interface SubjectEnrollmentWithDetails extends SubjectEnrollment {
 	batch: BatchBasic;
 	subject: SubjectBasic;
-	teacher: {  // Change from 'Teacher' to 'teacher' (lowercase)
-        id: string;
-        employeeId: string;
-        firstName: string;
-        lastName: string;
-        department?: string | null;
-     };
+	teacher: {
+		// Change from 'Teacher' to 'teacher' (lowercase)
+		id: string;
+		employeeId: string;
+		firstName: string;
+		lastName: string;
+		department?: string | null;
+	};
+	_count?: {
+		attendanceSessions: number;
+		timetableEntries: number;
+	};
+}
+
+// For queries FROM Subject (doesn't need subject reference in enrollments)
+export interface SubjectEnrollmentBasic extends SubjectEnrollment {
+	batch: {
+		id: string;
+		code: string;
+		name: string;
+		year?: string;
+		department: string;
+		capacity?: number | null;
+		classRoom?: string | null;
+	};
+	teacher: {
+		id: string;
+		employeeId: string;
+		firstName: string;
+		lastName: string;
+		department?: string | null;
+	};
 	_count?: {
 		attendanceSessions: number;
 		timetableEntries: number;
