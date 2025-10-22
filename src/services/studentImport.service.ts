@@ -124,9 +124,9 @@ export class StudentImportService {
 		// Process each student
 		for (let i = 0; i < students.length; i++) {
 			const studentData = students[i];
-               if (!studentData) {
-                    throw new Error("Student data is undefined");
-               }
+			if (!studentData) {
+				throw new Error("Student data is undefined");
+			}
 			const rowNumber = i + 2; // +2 because of 0-index and header row
 
 			try {
@@ -150,7 +150,7 @@ export class StudentImportService {
 
 				// Check if email already exists
 				const existingUser = await prisma.user.findUnique({
-					where: { email: studentData.email },  
+					where: { email: studentData.email },
 				});
 
 				if (existingUser) {
@@ -209,7 +209,9 @@ export class StudentImportService {
 						studentData.first_name,
 						studentData.student_id,
 						tempPassword,
-						verificationToken
+						verificationToken,
+						batch.code,        // 🔴 NEW: Pass batch code
+						batch.subject.name // 🔴 NEW: Pass subject name
 					);
 				} catch (emailError) {
 					logger.error(
@@ -255,44 +257,76 @@ export class StudentImportService {
 		firstName: string,
 		studentId: string,
 		tempPassword: string,
-		verificationToken: string
+		verificationToken: string,
+		batchCode: string, // 🔴 NEW: Include batch info
+		subjectName: string // 🔴 NEW: Include subject info
 	): Promise<void> {
 		const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+		const loginUrl = `${process.env.FRONTEND_URL}/login`;
 
 		const mailOptions = {
 			from: process.env.EMAIL_FROM,
 			to: email,
-			subject: "Welcome to AttendEase - Your Account Has Been Created",
+			subject: "Welcome to AttendEase - Account Created by Teacher",
 			html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Welcome to AttendEase, ${firstName}!</h2>
-          <p>Your student account has been created by your teacher. Here are your login credentials:</p>
-          
-          <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <p style="margin: 5px 0;"><strong>Student ID:</strong> ${studentId}</p>
-            <p style="margin: 5px 0;"><strong>Email:</strong> ${email}</p>
-            <p style="margin: 5px 0;"><strong>Temporary Password:</strong> <code style="background: #e0e0e0; padding: 2px 6px;">${tempPassword}</code></p>
-          </div>
-          
-          <p><strong>⚠️ Important:</strong> Please change your password after first login.</p>
-          
-          <p>Before logging in, please verify your email address:</p>
-          <p>
-            <a href="${verificationUrl}" 
-               style="background-color: #4CAF50; color: white; padding: 12px 24px; 
-                      text-decoration: none; border-radius: 4px; display: inline-block;">
-              Verify Email Address
-            </a>
-          </p>
-          
-          <p>Or copy this link:</p>
-          <p style="color: #666; font-size: 14px; word-break: break-all;">${verificationUrl}</p>
-          
-          <p style="color: #999; font-size: 12px; margin-top: 30px;">
-            If you didn't expect this email, please contact your institution.
-          </p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Welcome to AttendEase, ${firstName}! 🎓</h2>
+        
+        <p>Your teacher has created an account for you in <strong>${subjectName} (${batchCode})</strong>.</p>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">📝 Your Login Credentials</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 8px 0;"><strong>Student ID:</strong></td>
+              <td style="padding: 8px 0;"><code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px;">${studentId}</code></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;"><strong>Email:</strong></td>
+              <td style="padding: 8px 0;"><code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px;">${email}</code></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;"><strong>Temporary Password:</strong></td>
+              <td style="padding: 8px 0;"><code style="background: #fff3cd; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${tempPassword}</code></td>
+            </tr>
+          </table>
         </div>
-      `,
+        
+        <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
+          <strong>⚠️ Important Security Steps:</strong>
+          <ol style="margin: 10px 0; padding-left: 20px;">
+            <li>Verify your email first (button below)</li>
+            <li>Login with the temporary password</li>
+            <li><strong>Change your password immediately</strong> after first login</li>
+          </ol>
+        </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${verificationUrl}" 
+             style="background-color: #28a745; color: white; padding: 14px 28px; 
+                    text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+            ✅ Verify Email Address
+          </a>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">Or copy this link:</p>
+        <p style="color: #666; font-size: 12px; word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px;">
+          ${verificationUrl}
+        </p>
+        
+        <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
+        
+        <div style="background-color: #e7f3ff; padding: 15px; border-radius: 6px;">
+          <p style="margin: 0;"><strong>📱 After Email Verification:</strong></p>
+          <p style="margin: 10px 0;">Login at: <a href="${loginUrl}">${loginUrl}</a></p>
+          <p style="margin: 0; font-size: 14px; color: #666;">Use your email and the temporary password above</p>
+        </div>
+        
+        <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
+          This is an automated email from AttendEase. If you believe this is a mistake, please contact your teacher.
+        </p>
+      </div>
+    `,
 		};
 
 		await EmailService.sendEmail(mailOptions);
