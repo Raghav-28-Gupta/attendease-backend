@@ -29,9 +29,7 @@ export class BatchService {
 		}
 
 		// Generate batch code
-		const batchCode = `${subject.code}-${data.name
-			.toUpperCase()
-			.replace(/\s+/g, "")}`;
+		const batchCode = `${subject.code}-${data.name.toUpperCase().replace(/\s+/g, "")}`;
 
 		// Check if batch code exists
 		const existingBatch = await prisma.batch.findUnique({
