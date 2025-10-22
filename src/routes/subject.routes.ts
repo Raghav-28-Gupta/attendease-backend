@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { SubjectController } from "@controllers/subject.controller";
-import { BatchController } from "@controllers/batch.controller";
 import { authenticate, authorize } from "@middleware/auth";
 import { validate } from "@middleware/validator";
 import {
@@ -11,44 +10,64 @@ import {
 
 const router = Router();
 
-// All routes require teacher authentication
-router.use(authenticate, authorize("TEACHER"));
+// ✅ All routes require authentication
+router.use(authenticate);
 
-// Subject CRUD
-router.post(
-	"/",
-	validate(createSubjectSchema),
-	SubjectController.createSubject
-);
-router.get("/", SubjectController.getTeacherSubjects);
+// ===== PUBLIC (Authenticated) ROUTES =====
+
+// Search subjects (any authenticated user)
+router.get("/search", SubjectController.searchSubjects);
+
+// Get all subjects with optional department filter (any authenticated user)
+router.get("/", SubjectController.getAllSubjects);
+
+// Get subject by ID (any authenticated user)
 router.get(
 	"/:subjectId",
 	validate(subjectIdSchema),
 	SubjectController.getSubjectById
 );
-router.put(
-	"/:subjectId",
-	validate(updateSubjectSchema),
-	SubjectController.updateSubject
-);
-router.delete(
-	"/:subjectId",
-	validate(subjectIdSchema),
-	SubjectController.deleteSubject
-);
 
-// Subject stats
+// Get subject statistics (any authenticated user)
 router.get(
 	"/:subjectId/stats",
 	validate(subjectIdSchema),
 	SubjectController.getSubjectStats
 );
 
-// Get batches for subject
+// ===== TEACHER-ONLY ROUTES =====
+
+// Get subjects taught by logged-in teacher
 router.get(
-	"/:subjectId/batches",
+	"/my-subjects",
+	authorize("TEACHER"),
+	SubjectController.getTeacherSubjects
+);
+
+// Create subject (TEACHER or ADMIN)
+router.post(
+	"/",
+	authorize("TEACHER", "ADMIN"),
+	validate(createSubjectSchema),
+	SubjectController.createSubject
+);
+
+// ===== ADMIN-ONLY ROUTES =====
+
+// Update subject (ADMIN only)
+router.put(
+	"/:subjectId",
+	authorize("ADMIN"),
+	validate(updateSubjectSchema),
+	SubjectController.updateSubject
+);
+
+// Delete subject (ADMIN only)
+router.delete(
+	"/:subjectId",
+	authorize("ADMIN"),
 	validate(subjectIdSchema),
-	BatchController.getSubjectBatches
+	SubjectController.deleteSubject
 );
 
 export default router;

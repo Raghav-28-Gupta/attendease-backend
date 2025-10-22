@@ -4,6 +4,7 @@ import type { JWTPayload } from "@config/jwt";
 import { ApiError } from "@utils/ApiError";
 import { asyncHandler } from "@utils/asyncHandler";
 import prisma from "@config/database";
+import type { UserRole } from "@prisma/client";
 
 // Extend Express Request type
 declare global {
@@ -58,12 +59,29 @@ export const authenticate = asyncHandler(
 export const authorize = (...allowedRoles: string[]) => {
 	return (req: Request, res: Response, next: NextFunction) => {
 		if (!req.user) {
-			throw ApiError.unauthorized("Not authenticated");
+			throw ApiError.unauthorized("Authentication required");
 		}
 
 		if (!allowedRoles.includes(req.user.role)) {
 			throw ApiError.forbidden(
 				`Access denied. Required role: ${allowedRoles.join(" or ")}`
+			);
+		}
+
+		next();
+	};
+};
+
+// In src/middleware/auth.ts
+export const requireRole = (roles: UserRole[]) => {
+	return (req: Request, res: Response, next: NextFunction) => {
+		if (!req.user) {
+			throw ApiError.unauthorized("Authentication required");
+		}
+
+		if (!roles.includes(req.user.role)) {
+			throw ApiError.forbidden(
+				`Access denied. Required role: ${roles.join(" or ")}`
 			);
 		}
 
