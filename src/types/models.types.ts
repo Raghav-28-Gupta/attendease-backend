@@ -149,6 +149,12 @@ export interface SubjectEnrollmentBasic extends SubjectEnrollment {
 	};
 }
 
+export interface EnrollBatchesDTO {
+    subjectId: string;
+    batchIds: string[];
+    semester: string;
+}
+
 export interface SubjectEnrollmentWithBatch extends SubjectEnrollment {
 	batch: BatchBasic;
 	subject: {
@@ -163,6 +169,10 @@ export interface SubjectEnrollmentWithBatch extends SubjectEnrollment {
 		lastName: string;
 		employeeId: string;
 	};
+	_count?: {  // Add this property
+        attendanceSessions: number;
+        timetableEntries?: number;
+     };
 }
 
 export interface CreateSubjectEnrollmentDTO {
