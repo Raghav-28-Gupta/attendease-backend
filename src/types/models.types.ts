@@ -260,32 +260,35 @@ export interface BulkImportResult {
 // TIMETABLE TYPES
 export interface TimetableEntryWithDetails extends TimetableEntry {
 	batch: {
+		id: string;
 		code: string;
 		name: string;
+		department: string;
+		year: string;
 	};
 	subjectEnrollment: {
+		id: string;
 		subject: {
+			id: string;
 			code: string;
 			name: string;
+			semester: string;
 		};
 		teacher: {
-			//  FIXED: Moved to enrollment level
+			id: string;
+			employeeId: string;
 			firstName: string;
 			lastName: string;
-			employeeId: string;
 		};
+		room: string | null;
 	};
 }
-
 export interface CreateTimetableEntryDTO {
-	batchId: string;
 	subjectEnrollmentId: string;
 	dayOfWeek: string;
 	startTime: string;
 	endTime: string;
-	classRoom?: string;
-	type?: string;
-	professor?: string;
+	classRoom: string;
 }
 
 export interface UpdateTimetableEntryDTO {

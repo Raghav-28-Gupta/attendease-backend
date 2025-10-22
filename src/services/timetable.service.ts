@@ -3,38 +3,65 @@ import { ApiError } from "@utils/ApiError";
 import logger from "@utils/logger";
 import type {
 	CreateTimetableEntryDTO,
-	TimetableEntryWithBatch,
+	UpdateTimetableEntryDTO,
+	TimetableEntryWithDetails,
 	BatchTimetableDTO,
 } from "@local-types/models.types";
 
 export class TimetableService {
 	/**
-	 * Create single timetable entry for batch
+	 * Create single timetable entry for subject-batch enrollment
+	 * Teacher must be assigned to teach this subject-batch via SubjectEnrollment
 	 */
 	static async createTimetableEntry(
-		teacherId: string,
+		teacherUserId: string,
 		data: CreateTimetableEntryDTO
-	): Promise<TimetableEntryWithBatch> {
-		// Verify teacher owns the batch
-		const batch = await prisma.batch.findUnique({
-			where: { id: data.batchId },
+	): Promise<TimetableEntryWithDetails> {
+		// Get teacher record
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher profile not found");
+		}
+
+		// Verify teacher has a SubjectEnrollment for this batch
+		const enrollment = await prisma.subjectEnrollment.findFirst({
+			where: {
+				id: data.subjectEnrollmentId,
+				teacherId: teacher.id,
+			},
 			include: {
-				subject: { include: { teacher: true } },
+				batch: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+					},
+				},
+				subject: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+					},
+				},
 			},
 		});
 
-		if (!batch) {
-			throw ApiError.notFound("Batch not found");
+		if (!enrollment) {
+			throw ApiError.forbidden(
+				"You are not assigned to teach this subject-batch combination"
+			);
 		}
 
-		if (batch.subject.teacher.userId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this batch");
-		}
-
-		// Check for overlapping entries
+		// Check for overlapping entries for the same batch on the same day
 		const overlapping = await prisma.timetableEntry.findFirst({
 			where: {
-				batchId: data.batchId,
+				subjectEnrollment: {
+					batchId: enrollment.batchId,
+				},
 				dayOfWeek: data.dayOfWeek,
 				OR: [
 					{
@@ -59,58 +86,121 @@ export class TimetableService {
 			);
 		}
 
-		// Create entry
+		// Create timetable entry
 		const entry = await prisma.timetableEntry.create({
-			data,
+			data: {
+				batchId: enrollment.batchId,
+				subjectEnrollmentId: data.subjectEnrollmentId,
+				dayOfWeek: data.dayOfWeek,
+				startTime: data.startTime,
+				endTime: data.endTime,
+				classRoom: data.classRoom,
+			},
 			include: {
 				batch: {
-					include: {
-						subject: true,
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+				subjectEnrollment: {
+					select: {
+						id: true,
+						subject: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								semester: true,
+							},
+						},
+						teacher: {
+							select: {
+								id: true,
+								employeeId: true,
+								firstName: true,
+								lastName: true,
+							},
+						},
+						room: true,
 					},
 				},
 			},
 		});
 
-		logger.info(`Timetable entry created for batch ${batch.code}`);
+		logger.info(
+			`Timetable entry created: ${enrollment.subject.code} for batch ${enrollment.batch.code} on ${data.dayOfWeek}`
+		);
 
-		return entry as TimetableEntryWithBatch;
+		return entry;
 	}
 
 	/**
 	 * Bulk create timetable entries for batch
+	 * Teacher must be assigned to teach subjects in this batch
 	 */
 	static async bulkCreateTimetableEntries(
 		batchId: string,
-		teacherId: string,
+		teacherUserId: string,
 		entries: BatchTimetableDTO[]
 	) {
-		// Verify teacher owns the batch
+		// Get teacher record
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher profile not found");
+		}
+
+		// Verify batch exists
 		const batch = await prisma.batch.findUnique({
 			where: { id: batchId },
-			include: {
-				subject: { include: { teacher: true } },
-			},
 		});
 
 		if (!batch) {
 			throw ApiError.notFound("Batch not found");
 		}
 
-		if (batch.subject.teacher.userId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this batch");
+		// Verify teacher has at least one SubjectEnrollment for this batch
+		const enrollments = await prisma.subjectEnrollment.findMany({
+			where: {
+				batchId,
+				teacherId: teacher.id,
+			},
+		});
+
+		if (enrollments.length === 0) {
+			throw ApiError.forbidden(
+				"You are not assigned to teach any subjects for this batch"
+			);
 		}
 
-		// Delete existing timetable entries
+		// Delete existing timetable entries for this batch
 		await prisma.timetableEntry.deleteMany({
-			where: { batchId },
+			where: {
+				subjectEnrollment: {
+					batchId,
+				},
+			},
 		});
+
+		// Transform entries to include required fields
+		const timetableData = entries.map((entry) => ({
+			batchId: batchId,
+			subjectEnrollmentId: entry.subjectEnrollmentId, // Must be provided in BatchTimetableDTO
+			dayOfWeek: entry.dayOfWeek,
+			startTime: entry.startTime,
+			endTime: entry.endTime,
+			classRoom: entry.classRoom,
+		}));
 
 		// Create new entries
 		const created = await prisma.timetableEntry.createMany({
-			data: entries.map((entry) => ({
-				batchId,
-				...entry,
-			})),
+			data: timetableData,
 		});
 
 		logger.info(
@@ -118,39 +208,108 @@ export class TimetableService {
 		);
 
 		// Fetch and return created entries
-		const timetable = await this.getBatchTimetable(batchId, teacherId);
+		const timetable = await prisma.timetableEntry.findMany({
+			where: {
+				subjectEnrollment: {
+					batchId,
+				},
+			},
+			include: {
+				batch: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+				subjectEnrollment: {
+					select: {
+						id: true,
+						subject: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								semester: true,
+							},
+						},
+						teacher: {
+							select: {
+								id: true,
+								employeeId: true,
+								firstName: true,
+								lastName: true,
+							},
+						},
+						room: true,
+					},
+				},
+			},
+			orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+		});
 
 		return {
-			message: `${created.count} timetable entries created`,
+			message: `${created.count} timetable entries created successfully`,
+			count: created.count,
 			timetable,
 		};
 	}
 
 	/**
-	 * Get timetable for batch
+	 * Get timetable for batch (all subjects taught to this batch)
+	 * Public to authenticated users - students need to see their schedule
 	 */
-	static async getBatchTimetable(batchId: string, teacherId?: string) {
+	static async getBatchTimetable(
+		batchId: string
+	): Promise<TimetableEntryWithDetails[]> {
+		// Verify batch exists
 		const batch = await prisma.batch.findUnique({
 			where: { id: batchId },
-			include: {
-				subject: { include: { teacher: true } },
-			},
 		});
 
 		if (!batch) {
 			throw ApiError.notFound("Batch not found");
 		}
 
-		if (teacherId && batch.subject.teacher.userId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this batch");
-		}
-
+		// Fetch all timetable entries for this batch
 		const timetable = await prisma.timetableEntry.findMany({
-			where: { batchId },
+			where: {
+				subjectEnrollment: {
+					batchId,
+				},
+			},
 			include: {
 				batch: {
-					include: {
-						subject: true,
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+				subjectEnrollment: {
+					select: {
+						id: true,
+						subject: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								semester: true,
+							},
+						},
+						teacher: {
+							select: {
+								id: true,
+								employeeId: true,
+								firstName: true,
+								lastName: true,
+							},
+						},
+						room: true,
 					},
 				},
 			},
@@ -162,20 +321,19 @@ export class TimetableService {
 
 	/**
 	 * Get student's timetable (via their batch)
+	 * Shows all subjects taught to their batch
 	 */
 	static async getStudentTimetable(studentId: string) {
 		const student = await prisma.student.findUnique({
 			where: { id: studentId },
 			include: {
 				batch: {
-					include: {
-						subject: true,
-						timetableEntries: {
-							orderBy: [
-								{ dayOfWeek: "asc" },
-								{ startTime: "asc" },
-							],
-						},
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
 					},
 				},
 			},
@@ -186,40 +344,225 @@ export class TimetableService {
 		}
 
 		// Check if student has a batch assigned
-		if (!student.batch) {
+		if (!student.batchId) {
 			throw ApiError.badRequest(
-				"Student is not assigned to any batch. Please contact your teacher."
+				"You are not assigned to any batch. Please contact administration."
 			);
 		}
 
-		return {
-			batch: {
-				id: student.batch.id,
-				name: student.batch.name,
-				code: student.batch.code,
-				subject: {
-					name: student.batch.subject.name,
-					code: student.batch.subject.code,
+		// Fetch timetable for student's batch
+		const timetable = await prisma.timetableEntry.findMany({
+			where: {
+				subjectEnrollment: {
+					batchId: student.batchId,
 				},
 			},
-			timetable: student.batch.timetableEntries,
+			include: {
+				batch: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+				subjectEnrollment: {
+					select: {
+						id: true,
+						subject: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								semester: true,
+							},
+						},
+						teacher: {
+							select: {
+								id: true,
+								employeeId: true,
+								firstName: true,
+								lastName: true,
+							},
+						},
+						room: true,
+					},
+				},
+			},
+			orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+		});
+
+		return {
+			batch: student.batch,
+			timetable,
 		};
 	}
 
 	/**
+	 * Get today's classes for student
+	 */
+	static async getTodayClasses(studentId: string) {
+		const today = new Date()
+			.toLocaleDateString("en-US", { weekday: "long" })
+			.toUpperCase();
+
+		const student = await prisma.student.findUnique({
+			where: { id: studentId },
+			include: {
+				batch: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+			},
+		});
+
+		if (!student) {
+			throw ApiError.notFound("Student not found");
+		}
+
+		if (!student.batchId) {
+			throw ApiError.badRequest(
+				"You are not assigned to any batch. Please contact administration."
+			);
+		}
+
+		// Fetch today's classes
+		const classes = await prisma.timetableEntry.findMany({
+			where: {
+				subjectEnrollment: {
+					batchId: student.batchId,
+				},
+				dayOfWeek: today,
+			},
+			include: {
+				batch: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+				subjectEnrollment: {
+					select: {
+						id: true,
+						subject: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								semester: true,
+							},
+						},
+						teacher: {
+							select: {
+								id: true,
+								employeeId: true,
+								firstName: true,
+								lastName: true,
+							},
+						},
+						room: true,
+					},
+				},
+			},
+			orderBy: { startTime: "asc" },
+		});
+
+		return {
+			day: today,
+			batch: student.batch,
+			classes,
+		};
+	}
+
+	/**
+	 * Get teacher's timetable (all their scheduled classes)
+	 * Query via SubjectEnrollment since teachers are assigned there
+	 */
+	static async getTeacherTimetable(
+		teacherId: string
+	): Promise<TimetableEntryWithDetails[]> {
+		// Fetch all timetable entries for batches where teacher has enrollments
+		const entries = await prisma.timetableEntry.findMany({
+			where: {
+				subjectEnrollment: {
+					teacherId: teacherId, // Teacher assigned to this subject-batch enrollment
+				},
+			},
+			include: {
+				batch: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+				subjectEnrollment: {
+					select: {
+						id: true,
+						subject: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								semester: true,
+							},
+						},
+						teacher: {
+							select: {
+								id: true,
+								employeeId: true,
+								firstName: true,
+								lastName: true,
+							},
+						},
+						room: true,
+					},
+				},
+			},
+			orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+		});
+
+		return entries;
+	}
+
+	/**
 	 * Update timetable entry
+	 * Teacher who created it (via enrollment) or admin
 	 */
 	static async updateTimetableEntry(
 		entryId: string,
-		teacherId: string,
-		data: Partial<CreateTimetableEntryDTO>
-	) {
+		teacherUserId: string,
+		data: UpdateTimetableEntryDTO
+	): Promise<TimetableEntryWithDetails> {
+		// Get teacher record
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher profile not found");
+		}
+
+		// Fetch entry with authorization check
 		const entry = await prisma.timetableEntry.findUnique({
 			where: { id: entryId },
 			include: {
-				batch: {
-					include: {
-						subject: { include: { teacher: true } },
+				subjectEnrollment: {
+					select: {
+						id: true,
+						teacherId: true,
+						batchId: true,
 					},
 				},
 			},
@@ -229,16 +572,21 @@ export class TimetableService {
 			throw ApiError.notFound("Timetable entry not found");
 		}
 
-		if (entry.batch.subject.teacher.userId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this entry");
+		// Verify teacher owns this enrollment
+		if (entry.subjectEnrollment.teacherId !== teacher.id) {
+			throw ApiError.forbidden(
+				"You do not have access to update this timetable entry"
+			);
 		}
 
-		// Check for overlapping if time is being changed
+		// Check for overlapping if time/day is being changed
 		if (data.startTime || data.endTime || data.dayOfWeek) {
 			const overlapping = await prisma.timetableEntry.findFirst({
 				where: {
 					id: { not: entryId },
-					batchId: entry.batchId,
+					subjectEnrollment: {
+						batchId: entry.subjectEnrollment.batchId,
+					},
 					dayOfWeek: data.dayOfWeek || entry.dayOfWeek,
 					OR: [
 						{
@@ -280,13 +628,45 @@ export class TimetableService {
 			}
 		}
 
+		// Update entry
 		const updated = await prisma.timetableEntry.update({
 			where: { id: entryId },
-			data,
+			data: {
+				dayOfWeek: data.dayOfWeek,
+				startTime: data.startTime,
+				endTime: data.endTime,
+				classRoom: data.classRoom,
+			},
 			include: {
 				batch: {
-					include: {
-						subject: true,
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+				subjectEnrollment: {
+					select: {
+						id: true,
+						subject: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								semester: true,
+							},
+						},
+						teacher: {
+							select: {
+								id: true,
+								employeeId: true,
+								firstName: true,
+								lastName: true,
+							},
+						},
+						room: true,
 					},
 				},
 			},
@@ -299,14 +679,28 @@ export class TimetableService {
 
 	/**
 	 * Delete timetable entry
+	 * Teacher who created it (via enrollment) or admin
 	 */
-	static async deleteTimetableEntry(entryId: string, teacherId: string) {
+	static async deleteTimetableEntry(
+		entryId: string,
+		teacherUserId: string
+	): Promise<{ message: string }> {
+		// Get teacher record
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher profile not found");
+		}
+
+		// Fetch entry with authorization check
 		const entry = await prisma.timetableEntry.findUnique({
 			where: { id: entryId },
 			include: {
-				batch: {
-					include: {
-						subject: { include: { teacher: true } },
+				subjectEnrollment: {
+					select: {
+						teacherId: true,
 					},
 				},
 			},
@@ -316,10 +710,14 @@ export class TimetableService {
 			throw ApiError.notFound("Timetable entry not found");
 		}
 
-		if (entry.batch.subject.teacher.userId !== teacherId) {
-			throw ApiError.forbidden("You do not have access to this entry");
+		// Verify teacher owns this enrollment
+		if (entry.subjectEnrollment.teacherId !== teacher.id) {
+			throw ApiError.forbidden(
+				"You do not have access to delete this timetable entry"
+			);
 		}
 
+		// Delete entry
 		await prisma.timetableEntry.delete({
 			where: { id: entryId },
 		});
@@ -327,49 +725,5 @@ export class TimetableService {
 		logger.info(`Timetable entry deleted: ${entryId}`);
 
 		return { message: "Timetable entry deleted successfully" };
-	}
-
-	/**
-	 * Get today's classes for student
-	 */
-	static async getTodayClasses(studentId: string) {
-		const today = new Date()
-			.toLocaleDateString("en-US", { weekday: "long" })
-			.toUpperCase();  // assuming DB stores day of the week in uppercase
-
-		const student = await prisma.student.findUnique({
-			where: { id: studentId },
-			include: {
-				batch: {
-					include: {
-						subject: true,
-						timetableEntries: {
-							where: { dayOfWeek: today },
-							orderBy: { startTime: "asc" },
-						},
-					},
-				},
-			},
-		});
-
-		if (!student) {
-			throw ApiError.notFound("Student not found");
-		}
-
-		// Check if student has a batch assigned
-		if (!student.batch) {
-			throw ApiError.badRequest(
-				"Student is not assigned to any batch. Please contact your teacher."
-			);
-		}
-
-		return {
-			day: today,
-			batch: {
-				name: student.batch.name,
-				subject: student.batch.subject.name,
-			},
-			classes: student.batch.timetableEntries,
-		};
 	}
 }
