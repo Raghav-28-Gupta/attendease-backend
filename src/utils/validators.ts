@@ -1,47 +1,27 @@
 import { z } from "zod";
 
 // Auth validators
+// Updated signup schema - Teachers only
 export const signupSchema = z.object({
-	body: z
-		.object({
-			email: z.string().email("Invalid email format"),
-			password: z
-				.string()
-				.min(8, "Password must be at least 8 characters")
-				.regex(/[A-Z]/, "Password must contain uppercase letter")
-				.regex(/[a-z]/, "Password must contain lowercase letter")
-				.regex(/[0-9]/, "Password must contain number")
-				.regex(
-					/[^A-Za-z0-9]/,
-					"Password must contain special character"
-				),
-			role: z.enum(["STUDENT", "TEACHER"], {
-				message: "Role must be STUDENT or TEACHER",
-			}),
-			firstName: z.string().min(1, "First name is required"),
-			lastName: z.string().min(1, "Last name is required"),
-			studentId: z.string().optional(),
-			employeeId: z.string().optional(),
-			department: z.string().optional(),
-			phone: z.string().optional(),
-			batchId: z.string().uuid("Invalid batch ID").optional(), // 🔴 NEW
-		})
-		.refine(
-			(data) => {
-				if (data.role === "STUDENT") {
-					// Students created via import will have batchId
-					// Manual signup blocked in service layer
-					return !!data.studentId;
-				}
-				if (data.role === "TEACHER") return !!data.employeeId;
-				return true;
-			},
-			{
+	body: z.object({
+		email: z.string().email("Invalid email format"),
+		password: z
+			.string()
+			.min(8, "Password must be at least 8 characters")
+			.regex(/[A-Z]/, "Password must contain uppercase letter")
+			.regex(/[a-z]/, "Password must contain lowercase letter")
+			.regex(/[0-9]/, "Password must contain number")
+			.regex(/[^A-Za-z0-9]/, "Password must contain special character"),
+		role: z.literal("TEACHER", {
 				message:
-					"Student ID required for students, Employee ID required for teachers",
-				path: ["studentId", "employeeId"],
-			}
-		),
+					"Only teachers can signup directly. Students are added by teachers.",
+			}),
+		}), //CHANGED: Only TEACHER allowed
+		firstName: z.string().min(1, "First name is required"),
+		lastName: z.string().min(1, "Last name is required"),
+		employeeId: z.string().min(1, "Employee ID is required"),
+		department: z.string().optional(),
+		phone: z.string().optional(),
 });
 
 export const loginSchema = z.object({

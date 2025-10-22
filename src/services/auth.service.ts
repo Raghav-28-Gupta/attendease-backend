@@ -12,11 +12,10 @@ interface SignupData {
 	role: "STUDENT" | "TEACHER";
 	firstName: string;
 	lastName: string;
-	studentId?: string;
 	employeeId?: string;
 	department?: string;
 	phone?: string;
-	batchId?: string; // Optional batchId for student signup
+	//  REMOVED: studentId, batchId (students don't signup directly)
 }
 
 interface LoginResponse {
@@ -28,14 +27,27 @@ interface LoginResponse {
 		role: string;
 		name: string;
 		identifier: string;
-		batchId?: string; // Return batchId for students
-		batchCode?: string; // Return batch code for display
+		batchId?: string;
+		batchCode?: string;
 	};
 }
 
 export class AuthService {
+	/**
+	 * User signup - TEACHERS ONLY
+	 * Students are created via teacher import flow
+	 */
 	static async signup(data: SignupData) {
 		const { email, password, role, firstName, lastName } = data;
+
+		//  CRITICAL: Block student signup entirely
+		if (role === "STUDENT") {
+			throw ApiError.forbidden(
+				"Student accounts are managed by teachers. " +
+					"If you're a student, please contact your teacher for account creation. " +
+					"If you already have credentials, use the login page instead."
+			);
+		}
 
 		// Check if email exists
 		const existingUser = await prisma.user.findUnique({
@@ -46,37 +58,18 @@ export class AuthService {
 			throw ApiError.badRequest("Email already registered");
 		}
 
-		// Check if identifier exists
-		if (role === "STUDENT" && data.studentId) {
-			const existingStudent = await prisma.student.findUnique({
-				where: { studentId: data.studentId },
-			});
-			if (existingStudent) {
-				throw ApiError.badRequest("Student ID already registered");
-			}
-
-			// Validate batchId if provided
-			if (data.batchId) {
-				const batchExists = await prisma.batch.findUnique({
-					where: { id: data.batchId },
-				});
-				if (!batchExists) {
-					throw ApiError.badRequest("Invalid batch ID");
-				}
-			} else {
-				// IMPORTANT: Students can signup without batch initially
-				// They will be assigned to batch later by teacher during import
-				// This allows pre-registration before teacher creates batches
-				logger.warn(
-					`Student ${data.studentId} signing up without batch assignment`
+		// Teacher-specific validation
+		if (role === "TEACHER") {
+			if (!data.employeeId) {
+				throw ApiError.badRequest(
+					"Employee ID is required for teachers"
 				);
 			}
-		}
 
-		if (role === "TEACHER" && data.employeeId) {
 			const existingTeacher = await prisma.teacher.findUnique({
 				where: { employeeId: data.employeeId },
 			});
+
 			if (existingTeacher) {
 				throw ApiError.badRequest("Employee ID already registered");
 			}
@@ -87,9 +80,9 @@ export class AuthService {
 
 		// Generate verification token
 		const verificationToken = crypto.randomBytes(32).toString("hex");
-		const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+		const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-		// Create user with profile in transaction
+		// Create teacher account in transaction
 		const user = await prisma.$transaction(async (tx) => {
 			const newUser = await tx.user.create({
 				data: {
@@ -101,39 +94,17 @@ export class AuthService {
 				},
 			});
 
-			if (role === "STUDENT") {
-				// Handle optional batchId
-				if (!data.batchId) {
-					// Create student WITHOUT batch (will be assigned later)
-					// This requires making batchId nullable in schema temporarily
-					// OR we create a "UNASSIGNED" batch for each subject
-					throw ApiError.badRequest(
-						"Students must be imported by teacher with batch assignment. Direct signup is disabled."
-					);
-				}
-
-				await tx.student.create({
-					data: {
-						userId: newUser.id,
-						studentId: data.studentId!,
-						firstName,
-						lastName,
-						phone: data.phone,
-						batchId: data.batchId, // Required now
-					},
-				});
-			} else if (role === "TEACHER") {
-				await tx.teacher.create({
-					data: {
-						userId: newUser.id,
-						employeeId: data.employeeId!,
-						firstName,
-						lastName,
-						department: data.department,
-						phone: data.phone,
-					},
-				});
-			}
+			// Only teachers can signup
+			await tx.teacher.create({
+				data: {
+					userId: newUser.id,
+					employeeId: data.employeeId!,
+					firstName,
+					lastName,
+					department: data.department,
+					phone: data.phone,
+				},
+			});
 
 			return newUser;
 		});
@@ -146,18 +117,15 @@ export class AuthService {
 				verificationToken
 			);
 		} catch (error) {
-			logger.error(
-				"Failed to send verification email, but user created:",
-				error
-			);
-			// Don't throw - user is created, email can be resent later
+			logger.error("Failed to send verification email:", error);
+			// Don't throw - user created, email can be resent
 		}
 
-		logger.info(`User signed up: ${email} (${role})`);
+		logger.info(`Teacher signed up: ${email}`);
 
 		return {
 			message:
-				"Signup successful! Please check your email to verify your account.",
+				"Teacher account created successfully! Please check your email to verify your account.",
 			user: {
 				id: user.id,
 				email: user.email,
@@ -166,11 +134,14 @@ export class AuthService {
 		};
 	}
 
+	/**
+	 * User login - BOTH teachers and students
+	 */
 	static async login(
 		email: string,
 		password: string
 	): Promise<LoginResponse> {
-		// Find user with profile (include batch for students)
+		// Find user with profile and batch info
 		const user = await prisma.user.findUnique({
 			where: { email },
 			include: {
@@ -178,7 +149,7 @@ export class AuthService {
 					include: {
 						batch: {
 							include: {
-								subject: true, // Include subject for batch info
+								subject: true,
 							},
 						},
 					},
@@ -188,48 +159,57 @@ export class AuthService {
 		});
 
 		if (!user) {
-			throw ApiError.unauthorized("Invalid credentials");
+			throw ApiError.unauthorized("Invalid email or password");
 		}
 
 		// Verify password
 		const isValidPassword = await bcrypt.compare(password, user.password);
 		if (!isValidPassword) {
-			throw ApiError.unauthorized("Invalid credentials");
+			throw ApiError.unauthorized("Invalid email or password");
 		}
 
 		// Check email verification
 		if (!user.emailVerified) {
 			throw ApiError.forbidden(
-				"Please verify your email before logging in"
+				"Please verify your email before logging in. Check your inbox for the verification link."
 			);
 		}
 
-		// Get profile info
+		// Get profile info based on role
 		let name = "";
 		let identifier = "";
 		let batchId: string | undefined;
 		let batchCode: string | undefined;
 
-		if (user.role === "STUDENT" && user.student) {
+		if (user.role === "STUDENT") {
+			if (!user.student) {
+				throw ApiError.internal("Student profile not found");
+			}
+
 			name = `${user.student.firstName} ${user.student.lastName}`;
 			identifier = user.student.studentId;
 
-			// Include batch information for students
-			if (user.student.batch) {
-				batchId = user.student.batch.id;
-				batchCode = user.student.batch.code;
-			} else {
-				// tudent not assigned to batch yet
-				logger.warn(
-					`Student ${user.student.studentId} logged in without batch assignment`
-				);
+			// Validate batch assignment
+			if (!user.student.batch) {
 				throw ApiError.forbidden(
-					"Your account is not assigned to a batch yet. Please contact your teacher."
+					"Your account is not assigned to a batch yet. " +
+						"Please contact your teacher to complete your enrollment."
 				);
 			}
-		} else if (user.role === "TEACHER" && user.teacher) {
+
+			batchId = user.student.batch.id;
+			batchCode = user.student.batch.code;
+
+			logger.info(`Student logged in: ${identifier} (${batchCode})`);
+		} else if (user.role === "TEACHER") {
+			if (!user.teacher) {
+				throw ApiError.internal("Teacher profile not found");
+			}
+
 			name = `${user.teacher.firstName} ${user.teacher.lastName}`;
 			identifier = user.teacher.employeeId;
+
+			logger.info(`Teacher logged in: ${identifier}`);
 		}
 
 		// Generate tokens
@@ -242,16 +222,34 @@ export class AuthService {
 
 		const refreshToken = generateRefreshToken(user.id);
 
-		// Store refresh token
-		await prisma.refreshToken.create({
-			data: {
-				userId: user.id,
-				token: refreshToken,
-				expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-			},
-		});
+		// Store refresh token (cleanup old tokens first)
+		await prisma.$transaction(async (tx) => {
+			// Delete expired tokens
+			await tx.refreshToken.deleteMany({
+				where: {
+					OR: [
+						{ userId: user.id, expiresAt: { lt: new Date() } },
+						{
+							userId: user.id,
+							createdAt: {
+								lt: new Date(
+									Date.now() - 30 * 24 * 60 * 60 * 1000
+								),
+							},
+						}, // Older than 30 days
+					],
+				},
+			});
 
-		logger.info(`User logged in: ${email}`);
+			// Create new token
+			await tx.refreshToken.create({
+				data: {
+					userId: user.id,
+					token: refreshToken,
+					expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+				},
+			});
+		});
 
 		return {
 			accessToken,
@@ -262,12 +260,15 @@ export class AuthService {
 				role: user.role,
 				name,
 				identifier,
-				batchId, // Return for students
-				batchCode, // Return for display (e.g., "CS301-A")
+				batchId,
+				batchCode,
 			},
 		};
 	}
 
+	/**
+	 * Verify email
+	 */
 	static async verifyEmail(token: string) {
 		const user = await prisma.user.findFirst({
 			where: {
@@ -278,7 +279,9 @@ export class AuthService {
 		});
 
 		if (!user) {
-			throw ApiError.badRequest("Invalid or expired verification token");
+			throw ApiError.badRequest(
+				"Invalid or expired verification token. Please request a new one."
+			);
 		}
 
 		await prisma.user.update({
@@ -297,6 +300,9 @@ export class AuthService {
 		};
 	}
 
+	/**
+	 * Resend verification email
+	 */
 	static async resendVerification(email: string) {
 		const user = await prisma.user.findUnique({
 			where: { email },
@@ -307,15 +313,17 @@ export class AuthService {
 		});
 
 		if (!user) {
-			// Don't reveal if email exists for security
+			// Don't reveal if email exists (security)
 			return {
 				message:
-					"If that email exists, verification link has been sent",
+					"If that email exists, a verification link has been sent.",
 			};
 		}
 
 		if (user.emailVerified) {
-			throw ApiError.badRequest("Email already verified");
+			throw ApiError.badRequest(
+				"Email is already verified. Please login."
+			);
 		}
 
 		// Generate new token
@@ -338,6 +346,28 @@ export class AuthService {
 			verificationToken
 		);
 
-		return { message: "Verification email sent" };
+		logger.info(`Verification email resent: ${email}`);
+
+		return {
+			message: "Verification email sent. Please check your inbox.",
+		};
+	}
+
+	/**
+	 * Logout - Invalidate refresh token
+	 */
+	static async logout(userId: string, refreshToken: string) {
+		await prisma.refreshToken.deleteMany({
+			where: {
+				userId,
+				token: refreshToken,
+			},
+		});
+
+		logger.info(`User logged out: ${userId}`);
+
+		return {
+			message: "Logged out successfully",
+		};
 	}
 }

@@ -3,6 +3,10 @@ import { AuthService } from "@services/auth.service";
 import { asyncHandler } from "@utils/asyncHandler";
 
 export class AuthController {
+	/**
+	 * POST /api/auth/signup
+	 * Teacher signup only
+	 */
 	static signup = asyncHandler(async (req: Request, res: Response) => {
 		const result = await AuthService.signup(req.body);
 
@@ -12,6 +16,10 @@ export class AuthController {
 		});
 	});
 
+	/**
+	 * POST /api/auth/login
+	 * Both teachers and students
+	 */
 	static login = asyncHandler(async (req: Request, res: Response) => {
 		const { email, password } = req.body;
 		const result = await AuthService.login(email, password);
@@ -23,6 +31,9 @@ export class AuthController {
 		});
 	});
 
+	/**
+	 * GET /api/auth/verify-email?token=xxx
+	 */
 	static verifyEmail = asyncHandler(async (req: Request, res: Response) => {
 		const { token } = req.query;
 		const result = await AuthService.verifyEmail(token as string);
@@ -33,6 +44,9 @@ export class AuthController {
 		});
 	});
 
+	/**
+	 * POST /api/auth/resend-verification
+	 */
 	static resendVerification = asyncHandler(
 		async (req: Request, res: Response) => {
 			const { email } = req.body;
@@ -45,12 +59,18 @@ export class AuthController {
 		}
 	);
 
+	/**
+	 * POST /api/auth/logout
+	 */
 	static logout = asyncHandler(async (req: Request, res: Response) => {
-		// Token is stateless, just send success
-		// Client should delete token from storage
+		const userId = req.user!.userId;
+		const { refreshToken } = req.body;
+
+		const result = await AuthService.logout(userId, refreshToken);
+
 		res.json({
 			success: true,
-			message: "Logged out successfully",
+			...result,
 		});
 	});
 }
