@@ -4,10 +4,8 @@ import { asyncHandler } from "@utils/asyncHandler";
 import { ApiError } from "@utils/ApiError";
 import type {
 	EnrollBatchesDTO,
-	SubjectEnrollmentWithBatch,
 	UpdateSubjectEnrollmentDTO,
 } from "@local-types/models.types";
-import prisma from "@/config/database";
 
 export class SubjectEnrollmentController {
 	/**
@@ -31,89 +29,39 @@ export class SubjectEnrollmentController {
 	});
 
 	/**
-	 * GET /api/subjects/:subjectId/enrollments
-	 * Get all enrollments for a subject
+	 * GET /api/enrollments/subjects/:subjectId
+	 * Get all batch enrollments for a subject
 	 * Teachers see only their enrollments, admins see all
 	 */
-	static async getSubjectEnrollments(
-		subjectId: string,
-		teacherUserId?: string // Changed from 'teacherUserId: string' to 'teacherUserId?: string'
-	): Promise<SubjectEnrollmentWithBatch[]> {
-		// Verify subject exists
-		const subject = await prisma.subject.findUnique({
-			where: { id: subjectId },
-		});
+	static getSubjectEnrollments = asyncHandler(
+		async (req: Request, res: Response) => {
+			const { subjectId } = req.params;
 
-		if (!subject) {
-			throw ApiError.notFound("Subject not found");
-		}
-
-		// Build where clause based on user role
-		const whereClause: any = {
-			subjectId,
-		};
-
-		// If teacher, filter by their userId
-		if (teacherUserId) {
-			const teacher = await prisma.teacher.findUnique({
-				where: { userId: teacherUserId },
-			});
-
-			if (!teacher) {
-				throw ApiError.notFound("Teacher not found");
+			// Validate subjectId exists
+			if (!subjectId) {
+				throw ApiError.badRequest("Subject ID is required");
 			}
 
-			whereClause.teacherId = teacher.id;
+			// Admins can view all enrollments, teachers only their own
+			const teacherUserId =
+				req.user!.role === "TEACHER" ? req.user!.userId : undefined;
+
+			const enrollments =
+				await SubjectEnrollmentService.getSubjectEnrollments(
+					subjectId,
+					teacherUserId
+				);
+
+			res.json({
+				success: true,
+				count: enrollments.length,
+				data: enrollments,
+			});
 		}
-
-		// Fetch enrollments
-		const enrollments = await prisma.subjectEnrollment.findMany({
-			where: whereClause,
-			include: {
-				batch: {
-					select: {
-						id: true,
-						code: true,
-						name: true,
-						department: true,
-						year: true,
-					},
-				},
-				subject: {
-					select: {
-						id: true,
-						code: true,
-						name: true,
-						department: true,
-						semester: true,
-					},
-				},
-				teacher: {
-					select: {
-						id: true,
-						employeeId: true,
-						firstName: true,
-						lastName: true,
-					},
-				},
-				_count: {
-					select: {
-						attendanceSessions: true,
-					},
-				},
-			},
-			orderBy: {
-				createdAt: "desc",
-			},
-		});
-
-		return enrollments;
-	}
-
-	// ...existing code...
+	);
 
 	/**
-	 * GET /api/batches/:batchId/subjects
+	 * GET /api/enrollments/batches/:batchId/subjects
 	 * Get all subjects a batch is enrolled in (with teacher info)
 	 * Public to authenticated users
 	 */
@@ -127,7 +75,7 @@ export class SubjectEnrollmentController {
 			}
 
 			const enrollments = await SubjectEnrollmentService.getBatchSubjects(
-				batchId // Now TypeScript knows this is definitely a string
+				batchId
 			);
 
 			res.json({
@@ -140,65 +88,33 @@ export class SubjectEnrollmentController {
 
 	/**
 	 * GET /api/enrollments/:enrollmentId
-	 * Get single enrollment details
-	 * Teachers can only view their own enrollments (unless admin)
+	 * Get specific enrollment details
+	 * Teachers see only their enrollments, admins see all
 	 */
-	/**
-	 * Get enrollment by ID with authorization check
-	 */
-	static async getEnrollmentById(
-		enrollmentId: string,
-		teacherUserId?: string // Changed from 'teacherUserId: string' to 'teacherUserId?: string'
-	): Promise<SubjectEnrollmentWithBatch> {
-		const enrollment = await prisma.subjectEnrollment.findUnique({
-			where: { id: enrollmentId },
-			include: {
-				batch: {
-					select: {
-						id: true,
-						code: true,
-						name: true,
-						department: true,
-						year: true,
-					},
-				},
-				subject: {
-					select: {
-						id: true,
-						code: true,
-						name: true,
-						department: true,
-						semester: true,
-					},
-				},
-				teacher: {
-					select: {
-						id: true,
-						userId: true,
-						employeeId: true,
-						firstName: true,
-						lastName: true,
-					},
-				},
-				_count: {
-					select: {
-						attendanceSessions: true,
-					},
-				},
-			},
-		});
+	static getEnrollmentById = asyncHandler(
+		async (req: Request, res: Response) => {
+			const { enrollmentId } = req.params;
 
-		if (!enrollment) {
-			throw ApiError.notFound("Enrollment not found");
+			// Validate enrollmentId exists
+			if (!enrollmentId) {
+				throw ApiError.badRequest("Enrollment ID is required");
+			}
+
+			// Admins can view any enrollment, teachers only their own
+			const teacherUserId =
+				req.user!.role === "TEACHER" ? req.user!.userId : undefined;
+
+			const enrollment = await SubjectEnrollmentService.getEnrollmentById(
+				enrollmentId,
+				teacherUserId
+			);
+
+			res.json({
+				success: true,
+				data: enrollment,
+			});
 		}
-
-		// Authorization: Teachers can only view their own enrollments
-		if (teacherUserId && enrollment.teacher.userId !== teacherUserId) {
-			throw ApiError.forbidden("Access denied to this enrollment");
-		}
-
-		return enrollment;
-	}
+	);
 
 	/**
 	 * PUT /api/enrollments/:enrollmentId
@@ -220,7 +136,7 @@ export class SubjectEnrollmentController {
 				req.user!.role === "TEACHER" ? req.user!.userId : undefined;
 
 			const enrollment = await SubjectEnrollmentService.updateEnrollment(
-				enrollmentId, // Now TypeScript knows this is definitely a string
+				enrollmentId,
 				teacherUserId,
 				data
 			);
@@ -238,30 +154,25 @@ export class SubjectEnrollmentController {
 	 * Unenroll batch from subject (remove enrollment)
 	 * Teacher who owns the enrollment or admin
 	 */
-	static async unenrollBatch(
-		enrollmentId: string,
-		teacherUserId?: string // Add '?' to make it optional
-	): Promise<{ message: string }> {
-		// Get enrollment with authorization check
-		const enrollment = await this.getEnrollmentById(
-			enrollmentId,
-			teacherUserId
-		);
+	static unenrollBatch = asyncHandler(async (req: Request, res: Response) => {
+		const { enrollmentId } = req.params;
 
-		// Prevent deletion if there are attendance sessions
-		if (enrollment._count && enrollment._count.attendanceSessions > 0) {
-			throw ApiError.badRequest(
-				"Cannot unenroll batch with existing attendance records"
-			);
+		// Validate enrollmentId exists
+		if (!enrollmentId) {
+			throw ApiError.badRequest("Enrollment ID is required");
 		}
 
-		// Delete enrollment
-		await prisma.subjectEnrollment.delete({
-			where: { id: enrollmentId },
-		});
+		// Admins can delete any enrollment, teachers only their own
+		const teacherUserId = req.user!.role === "TEACHER" ? req.user!.userId : undefined;
+          
+		const result = await SubjectEnrollmentService.unenrollBatch(
+			enrollmentId,
+			teacherUserId!
+		);
 
-		return {
-			message: `Batch ${enrollment.batch.code} unenrolled from subject ${enrollment.subject.code}`,
-		};
-	}
+		res.json({
+			success: true,
+			...result,
+		});
+	});
 }
