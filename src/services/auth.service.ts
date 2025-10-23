@@ -140,7 +140,28 @@ export class AuthService {
 					include: {
 						batch: {
 							include: {
-								subject: true,
+								subjectEnrollments: {
+									// Changed from 'subject' to 'subjectEnrollments'
+									include: {
+										subject: {
+											select: {
+												id: true,
+												code: true,
+												name: true,
+												department: true,
+												semester: true,
+											},
+										},
+										teacher: {
+											select: {
+												id: true,
+												firstName: true,
+												lastName: true,
+												employeeId: true,
+											},
+										},
+									},
+								},
 							},
 						},
 					},
