@@ -224,6 +224,12 @@ export interface StudentWithBatch extends Student {
 	};
 }
 
+export interface UpdateStudentProfileDTO {
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+}
+
 export interface StudentWithAttendance extends StudentBasic {
 	attendanceRecords: {
 		status: AttendanceStatus;
