@@ -36,9 +36,7 @@ export class SubjectController {
 		async (req: Request, res: Response) => {
 			const { department } = req.query;
 
-			const subjects = await SubjectService.getAllSubjects(
-				department as string | undefined
-			);
+			const subjects = await SubjectService.getAllSubjects(department as string | undefined);
 
 			res.json({
 				success: true,
@@ -64,9 +62,7 @@ export class SubjectController {
 				);
 			}
 
-			const subjects = await SubjectService.getTeacherSubjects(
-				teacherUserId
-			);
+			const subjects = await SubjectService.getTeacherSubjects(teacherUserId);
 
 			res.json({
 				success: true,
