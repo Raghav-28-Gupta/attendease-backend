@@ -179,9 +179,7 @@ export class StudentImportService {
 				const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
 				// Generate verification token
-				const verificationToken = crypto
-					.randomBytes(32)
-					.toString("hex");
+				const verificationToken = crypto.randomBytes(32).toString("hex");
 				const verificationExpires = new Date(
 					Date.now() + 24 * 60 * 60 * 1000
 				);

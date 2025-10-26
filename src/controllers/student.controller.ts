@@ -27,12 +27,9 @@ export class StudentController {
 	static updateMyProfile = asyncHandler(
 		async (req: Request, res: Response) => {
 			const userId = req.user!.userId;
-			const data: UpdateStudentProfileDTO = req.body;
+			const data: UpdateStudentProfileDTO = req.body; // can only update firstname, lastname or ph no.
 
-			const student = await StudentService.updateStudentProfile(
-				userId,
-				data
-			);
+			const student = await StudentService.updateStudentProfile(userId, data);
 
 			res.json({
 				success: true,
