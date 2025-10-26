@@ -43,11 +43,9 @@ export class SubjectEnrollmentController {
 			}
 
 			// Admins can view all enrollments, teachers only their own
-			const teacherUserId =
-				req.user!.role === "TEACHER" ? req.user!.userId : undefined;
+			const teacherUserId = req.user!.role === "TEACHER" ? req.user!.userId : undefined;
 
-			const enrollments =
-				await SubjectEnrollmentService.getSubjectEnrollments(
+			const enrollments = await SubjectEnrollmentService.getSubjectEnrollments(
 					subjectId,
 					teacherUserId
 				);
@@ -74,9 +72,7 @@ export class SubjectEnrollmentController {
 				throw ApiError.badRequest("Batch ID is required");
 			}
 
-			const enrollments = await SubjectEnrollmentService.getBatchSubjects(
-				batchId
-			);
+			const enrollments = await SubjectEnrollmentService.getBatchSubjects(batchId);
 
 			res.json({
 				success: true,
