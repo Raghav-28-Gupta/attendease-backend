@@ -97,8 +97,7 @@ export class SubjectEnrollmentController {
 			}
 
 			// Admins can view any enrollment, teachers only their own
-			const teacherUserId =
-				req.user!.role === "TEACHER" ? req.user!.userId : undefined;
+			const teacherUserId = req.user!.role === "TEACHER" ? req.user!.userId : undefined;
 
 			const enrollment = await SubjectEnrollmentService.getEnrollmentById(
 				enrollmentId,
