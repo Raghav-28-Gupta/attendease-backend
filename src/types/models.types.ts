@@ -7,6 +7,7 @@ import type {
 	TimetableEntry,
 	AttendanceSession,
 	AttendanceRecord,
+	AttendanceEdit,
 	UserRole,
 	AttendanceStatus,
 	SessionType,
@@ -150,9 +151,9 @@ export interface SubjectEnrollmentBasic extends SubjectEnrollment {
 }
 
 export interface EnrollBatchesDTO {
-    subjectId: string;
-    batchIds: string[];
-    semester: string;
+	subjectId: string;
+	batchIds: string[];
+	semester: string;
 }
 
 export interface SubjectEnrollmentWithBatch extends SubjectEnrollment {
@@ -169,10 +170,11 @@ export interface SubjectEnrollmentWithBatch extends SubjectEnrollment {
 		lastName: string;
 		employeeId: string;
 	};
-	_count?: {  // Add this property
-        attendanceSessions: number;
-        timetableEntries?: number;
-     };
+	_count?: {
+		// Add this property
+		attendanceSessions: number;
+		timetableEntries?: number;
+	};
 }
 
 export interface CreateSubjectEnrollmentDTO {
@@ -225,9 +227,9 @@ export interface StudentWithBatch extends Student {
 }
 
 export interface UpdateStudentProfileDTO {
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
+	firstName?: string;
+	lastName?: string;
+	phone?: string;
 }
 
 export interface StudentWithAttendance extends StudentBasic {
@@ -294,7 +296,7 @@ export interface CreateTimetableEntryDTO {
 	dayOfWeek: string;
 	startTime: string;
 	endTime: string;
-	classRoom: string;
+	classRoom?: string;
 }
 
 export interface UpdateTimetableEntryDTO {
@@ -328,34 +330,6 @@ export interface BatchTimetableDTO {
 }
 
 // ATTENDANCE TYPES
-export interface CreateAttendanceSessionDTO {
-	subjectEnrollmentId: string;
-	date: Date;
-	startTime: string;
-	endTime: string;
-	type?: SessionType;
-}
-
-export interface AttendanceSessionWithDetails extends AttendanceSession {
-	subjectEnrollment: {
-		subject: {
-			code: string;
-			name: string;
-		};
-		batch: {
-			code: string;
-			name: string;
-		};
-		teacher: {
-			firstName: string;
-			lastName: string;
-		};
-	};
-	_count: {
-		records: number;
-	};
-}
-
 export interface AttendanceRecordWithStudent extends AttendanceRecord {
 	student: StudentBasic;
 }
@@ -368,22 +342,121 @@ export interface MarkAttendanceDTO {
 	}[];
 }
 
-export interface AttendanceStatsDTO {
-	totalSessions: number;
-	attended: number;
-	percentage: number;
-	byStatus: {
-		present: number;
-		absent: number;
-		late: number;
-		excused: number;
+// ATTENDANCE SESSION TYPES
+export interface AttendanceSessionWithDetails extends AttendanceSession {
+	subjectEnrollment: {
+		id: string;
+		subject: {
+			id: string;
+			code: string;
+			name: string;
+		};
+		batch: {
+			id: string;
+			code: string;
+			name: string;
+		};
+		teacher: {
+			id: string;
+			firstName: string;
+			lastName: string;
+			employeeId: string;
+		};
+	};
+	_count: {
+		records: number;
 	};
 }
 
-// DASHBOARD TYPES
+export interface CreateAttendanceSessionDTO {
+	subjectEnrollmentId: string;
+	date: Date | string;
+	startTime: string; // "HH:MM:SS"
+	endTime: string; // "HH:MM:SS"
+	type?: SessionType;
+}
+
+export interface SessionWithRecords extends AttendanceSession {
+	subjectEnrollment: {
+		subject: {
+			code: string;
+			name: string;
+		};
+		batch: {
+			code: string;
+			name: string;
+		};
+	};
+	records: AttendanceRecordWithStudent[];
+}
+
+// ATTENDANCE RECORD TYPES
+export interface AttendanceRecordWithSession extends AttendanceRecord {
+	session: {
+		id: string;
+		date: Date;
+		startTime: string;
+		endTime: string;
+		subjectEnrollment: {
+			subject: {
+				code: string;
+				name: string;
+			};
+		};
+	};
+}
+
+export interface UpdateAttendanceDTO {
+	status: AttendanceStatus;
+	reason?: string;
+}
+
+// ATTENDANCE STATISTICS TYPES
+
+export interface AttendanceStatsDTO {
+	totalSessions: number;
+	present: number;
+	absent: number;
+	late: number;
+	excused: number;
+	percentage: number;
+	status: "GOOD" | "WARNING" | "CRITICAL"; // >= 75% = GOOD, 65-74% = WARNING, < 65% = CRITICAL
+}
+
+export interface StudentAttendanceOverview {
+	student: {
+		id: string;
+		studentId: string;
+		firstName: string;
+		lastName: string;
+	};
+	stats: AttendanceStatsDTO;
+	recentRecords: AttendanceRecordWithSession[];
+}
+
+export interface SubjectAttendanceSummary {
+	subjectEnrollment: {
+		id: string;
+		subject: {
+			code: string;
+			name: string;
+		};
+		batch: {
+			code: string;
+			name: string;
+		};
+	};
+	stats: {
+		totalSessions: number;
+		totalStudents: number;
+		averageAttendance: number;
+		lastSession: Date | null;
+	};
+}
+
+// DASHBOARD TYPES (UPDATED)
 export interface TeacherDashboardData {
 	enrollments: {
-		//  FIXED: Changed from subjects to enrollments
 		id: string;
 		subject: {
 			code: string;
@@ -398,37 +471,56 @@ export interface TeacherDashboardData {
 		stats: {
 			sessionsHeld: number;
 			averageAttendance: number;
+			lastSession: Date | null;
 		};
 	}[];
 	stats: {
-		totalEnrollments: number; //  FIXED: Changed from totalSubjects
+		totalEnrollments: number;
 		totalBatchesTeaching: number;
 		totalStudents: number;
 		totalSessions: number;
+		averageAttendance: number;
 	};
 	recentSessions: AttendanceSessionWithDetails[];
+	lowAttendanceStudents: {
+		studentId: string;
+		name: string;
+		batchCode: string;
+		subjectCode: string;
+		percentage: number;
+	}[];
 }
 
 export interface StudentDashboardData {
+	student: {
+		id: string;
+		studentId: string;
+		firstName: string;
+		lastName: string;
+	};
 	batch: {
 		id: string;
 		code: string;
 		name: string;
 		year: string;
-	} | null; //  FIXED: Made nullable
+	} | null;
 	subjects: {
+		enrollmentId: string;
 		code: string;
 		name: string;
 		teacherName: string;
 		attendance: AttendanceStatsDTO;
 	}[];
 	todayClasses: TimetableEntryWithDetails[];
-	recentAttendance: {
-		date: Date;
+	recentAttendance: AttendanceRecordWithSession[];
+	alerts: {
+		type: "LOW_ATTENDANCE" | "ABSENT_TODAY" | "NEARING_THRESHOLD";
 		subject: string;
-		status: AttendanceStatus;
+		message: string;
+		percentage?: number;
 	}[];
 }
+
 
 // API RESPONSE TYPES
 export interface PaginatedResponse<T> {
