@@ -5,6 +5,8 @@ import batchRoutes from "./batch.routes";
 import enrollmentRoutes from "./subjectEnrollment.routes";
 import timetableRoutes from "./timetable.routes";
 import studentRoutes from "./student.routes";
+import attendanceRoutes from './attendance.routes'; 
+import dashboardRoutes from './dashboard.routes'; 
 
 const router = Router();
 
@@ -15,5 +17,7 @@ router.use("/batches", batchRoutes);
 router.use("/enrollments", enrollmentRoutes); 
 router.use("/timetable", timetableRoutes);
 router.use("/students", studentRoutes);
+router.use('/attendance', attendanceRoutes); 
+router.use('/dashboard', dashboardRoutes); 
 
 export default router;
