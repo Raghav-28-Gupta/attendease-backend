@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+const TIME_REGEX = /^([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/;
+
 // AUTH VALIDATORS
 export const signupSchema = z.object({
 	body: z.object({
@@ -179,7 +181,6 @@ export const batchSubjectsSchema = z.object({
 });
 
 // STUDENT IMPORT VALIDATORS
-
 export const importStudentsSchema = z.object({
 	params: z.object({
 		batchId: z.string().uuid("Invalid batch ID"),
@@ -229,7 +230,7 @@ const DAYS_OF_WEEK = [
 	"SUNDAY",
 ] as const;
 
-const TIME_REGEX = /^([0-1][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])$/;
+
 
 export const createTimetableEntrySchema = z.object({
 	// UPDATED - Added subjectEnrollmentId
@@ -310,30 +311,36 @@ export const timetableIdSchema = z.object({
 	}),
 });
 
-// ATTENDANCE VALIDATORS (NEW)
+// ATTENDANCE VALIDATORS
 export const createAttendanceSessionSchema = z.object({
-	// NEW
-	body: z.object({
-		subjectEnrollmentId: z.string().uuid("Invalid subject enrollment ID"), // Changed from subjectId
-		date: z
-			.string()
-			.regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
-		startTime: z
-			.string()
-			.regex(TIME_REGEX, "Time must be in HH:MM:SS format"),
-		endTime: z
-			.string()
-			.regex(TIME_REGEX, "Time must be in HH:MM:SS format"),
-		type: z.enum(["REGULAR", "MAKEUP", "EXTRA"]).optional(),
-	}),
+	body: z
+		.object({
+			subjectEnrollmentId: z.string().uuid("Invalid enrollment ID"),
+			date: z.string().datetime().or(z.date()),
+			startTime: z
+				.string()
+				.regex(TIME_REGEX, "Time must be in HH:MM:SS format"),
+			endTime: z
+				.string()
+				.regex(TIME_REGEX, "Time must be in HH:MM:SS format"),
+			type: z.enum(["REGULAR", "MAKEUP", "EXTRA"]).optional(),
+		})
+		.refine(
+			(data) => {
+				const start = new Date(`2000-01-01T${data.startTime}`);
+				const end = new Date(`2000-01-01T${data.endTime}`);
+				return end > start;
+			},
+			{
+				message: "End time must be after start time",
+				path: ["endTime"],
+			}
+		),
 });
 
 export const markAttendanceSchema = z.object({
-	// NEW
-	params: z.object({
-		sessionId: z.string().uuid("Invalid session ID"),
-	}),
 	body: z.object({
+		sessionId: z.string().uuid("Invalid session ID"),
 		records: z
 			.array(
 				z.object({
@@ -345,20 +352,49 @@ export const markAttendanceSchema = z.object({
 	}),
 });
 
+export const updateAttendanceSchema = z.object({
+	params: z.object({
+		recordId: z.string().uuid("Invalid record ID"),
+	}),
+	body: z.object({
+		status: z.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED"]),
+		reason: z
+			.string()
+			.min(5, "Reason must be at least 5 characters")
+			.optional(),
+	}),
+});
+
 export const attendanceSessionIdSchema = z.object({
-	// NEW
 	params: z.object({
 		sessionId: z.string().uuid("Invalid session ID"),
 	}),
 });
 
-export const editAttendanceSchema = z.object({
-	// NEW
+export const attendanceRecordIdSchema = z.object({
 	params: z.object({
-		recordId: z.string().uuid("Invalid attendance record ID"),
+		recordId: z.string().uuid("Invalid record ID"),
 	}),
-	body: z.object({
-		status: z.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED"]),
-		reason: z.string().min(1, "Reason is required"),
+});
+
+export const getStudentAttendanceSchema = z.object({
+	params: z.object({
+		studentId: z.string().uuid("Invalid student ID"),
+	}),
+	query: z.object({
+		subjectEnrollmentId: z
+			.string()
+			.uuid("Invalid enrollment ID")
+			.optional(),
+	}),
+});
+
+export const getEnrollmentAttendanceSchema = z.object({
+	params: z.object({
+		enrollmentId: z.string().uuid("Invalid enrollment ID"),
+	}),
+	query: z.object({
+		startDate: z.string().datetime().optional(),
+		endDate: z.string().datetime().optional(),
 	}),
 });
