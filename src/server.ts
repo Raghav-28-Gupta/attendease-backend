@@ -1,11 +1,16 @@
-import { Server } from "http";
+import http from "http";
 import app from "./app";
+import { initializeSocket } from "@config/socket";
 import logger from "@utils/logger";
 import prisma from "@config/database";
 
 const PORT = process.env.PORT || 5000;
 
-let server: Server | null = null;
+// Create HTTP server
+const httpServer = http.createServer(app);
+
+// Initialize WebSocket
+initializeSocket(httpServer);
 
 const startServer = async () => {
 	try {
@@ -13,37 +18,52 @@ const startServer = async () => {
 		await prisma.$connect();
 		logger.info("✅ Database connected");
 
-		// Start HTTP server
-		server = app.listen(PORT, () => {
-			logger.info(`✅ Server running on http://localhost:${PORT}`);
-			logger.info(`📝 Environment: ${process.env.NODE_ENV}`);
+		// Start HTTP server with WebSocket support
+		httpServer.listen(PORT, () => {
+			logger.info(`🚀 Server running on http://localhost:${PORT}`);
+			logger.info(`📡 WebSocket server ready`);
+			logger.info(
+				`📝 Environment: ${process.env.NODE_ENV || "development"}`
+			);
 		});
 	} catch (error) {
-		logger.error("Failed to start server:", error);
+		logger.error("❌ Failed to start server:", error);
 		process.exit(1);
 	}
 };
 
 // Graceful shutdown
 const gracefulShutdown = async () => {
-	logger.info("Shutting down gracefully...");
+	logger.info("⏳ Shutting down gracefully...");
 
-	if (server) {
-		server.close(() => {
-			logger.info("HTTP server closed");
-		});
-	}
+	// Close HTTP server (this also closes WebSocket connections)
+	httpServer.close(() => {
+		logger.info("✅ HTTP server closed");
+	});
 
+	// Disconnect from database
 	await prisma.$disconnect();
-	logger.info("Database disconnected");
+	logger.info("✅ Database disconnected");
 
 	process.exit(0);
 };
 
+// Handle shutdown signals
 process.on("SIGTERM", gracefulShutdown);
 process.on("SIGINT", gracefulShutdown);
+
+// Handle uncaught errors
+process.on("unhandledRejection", (reason, promise) => {
+	logger.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+	gracefulShutdown();
+});
+
+process.on("uncaughtException", (error) => {
+	logger.error("❌ Uncaught Exception:", error);
+	gracefulShutdown();
+});
 
 // Start server
 startServer();
 
-export default server;
+export default httpServer;

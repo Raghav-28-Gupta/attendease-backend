@@ -367,7 +367,6 @@ export interface AttendanceSessionWithDetails extends AttendanceSession {
 		records: number;
 	};
 }
-
 export interface CreateAttendanceSessionDTO {
 	subjectEnrollmentId: string;
 	date: Date | string;
