@@ -2,6 +2,7 @@ import prisma from "@config/database";
 import { getMessaging } from "@config/firebase";
 import logger from "@utils/logger";
 import { ApiError } from "@utils/ApiError";
+import { EmailService } from "./email.service";
 
 export class NotificationService {
 	/**
@@ -133,7 +134,7 @@ export class NotificationService {
 	}
 
 	/**
-	 * Send low attendance alert via push notification
+	 * Send low attendance alert via push notification + email alerts
 	 */
 	static async sendLowAttendanceAlert(
 		studentUserId: string,
@@ -145,26 +146,91 @@ export class NotificationService {
 			status: "WARNING" | "CRITICAL";
 		}
 	) {
-		const title =
-			data.status === "CRITICAL"
-				? `🚨 Critical: ${data.subjectCode} Attendance`
-				: `⚠️ Warning: ${data.subjectCode} Attendance`;
+		try {
+			// Get student info with email
+			const student = await prisma.student.findUnique({
+				where: { userId: studentUserId },
+				include: {
+					user: {
+						select: {
+							email: true,
+						},
+					},
+				},
+			});
 
-		const body =
-			data.status === "CRITICAL"
-				? `Your ${data.subjectName} attendance is ${data.percentage}%. Attend ${data.sessionsNeeded} more classes urgently!`
-				: `Your ${data.subjectName} attendance is ${data.percentage}%. Attend ${data.sessionsNeeded} more classes to reach 75%.`;
+			if (!student) {
+				logger.warn(`Student not found for userId: ${studentUserId}`);
+				return { sent: 0, emailSent: false };
+			}
 
-		return this.sendPushNotification(studentUserId, {
-			title,
-			body,
-			data: {
-				type: "LOW_ATTENDANCE",
-				subjectCode: data.subjectCode,
-				percentage: data.percentage.toString(),
-				status: data.status,
-			},
-		});
+			const studentName = `${student.firstName} ${student.lastName}`;
+
+			// Send push notification
+			const title =
+				data.status === "CRITICAL"
+					? `🚨 Critical: ${data.subjectCode} Attendance`
+					: `⚠️ Warning: ${data.subjectCode} Attendance`;
+
+			const body =
+				data.status === "CRITICAL"
+					? `Your ${
+							data.subjectName
+					  } attendance is ${data.percentage.toFixed(1)}%. Attend ${
+							data.sessionsNeeded
+					  } more classes urgently!`
+					: `Your ${
+							data.subjectName
+					  } attendance is ${data.percentage.toFixed(1)}%. Attend ${
+							data.sessionsNeeded
+					  } more classes to reach 75%.`;
+
+			const pushResult = await this.sendPushNotification(studentUserId, {
+				title,
+				body,
+				data: {
+					type: "LOW_ATTENDANCE",
+					subjectCode: data.subjectCode,
+					percentage: data.percentage.toString(),
+					status: data.status,
+				},
+			});
+
+			// Send email notification (CRITICAL alerts only)
+			let emailSent = false;
+			if (data.status === "CRITICAL") {
+				try {
+					await EmailService.sendLowAttendanceAlertEmail(
+						student.user.email,
+						{
+							studentName,
+							subjectCode: data.subjectCode,
+							subjectName: data.subjectName,
+							percentage: data.percentage,
+							sessionsNeeded: data.sessionsNeeded,
+							status: data.status,
+						}
+					);
+
+					logger.info(
+						`Critical attendance email sent to ${student.user.email} for ${data.subjectCode}`
+					);
+					emailSent = true;
+				} catch (emailError) {
+					logger.error("Failed to send low attendance email:", emailError);
+					// Don't fail the entire operation if email fails
+				}
+			}
+
+			return {
+				sent: pushResult.sent,
+				failed: pushResult.failed,
+				emailSent,
+			};
+		} catch (error) {
+			logger.error("Failed to send low attendance alert:", error);
+			return { sent: 0, failed: 1, emailSent: false };
+		}
 	}
 
 	/**
