@@ -7,6 +7,7 @@ import timetableRoutes from "./timetable.routes";
 import studentRoutes from "./student.routes";
 import attendanceRoutes from './attendance.routes'; 
 import dashboardRoutes from './dashboard.routes'; 
+import notificationRoutes from './notification.routes';
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use("/timetable", timetableRoutes);
 router.use("/students", studentRoutes);
 router.use('/attendance', attendanceRoutes); 
 router.use('/dashboard', dashboardRoutes); 
+router.use('/notifications', notificationRoutes);
 
 export default router;
