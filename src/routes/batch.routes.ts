@@ -105,7 +105,7 @@ router.post(
  */
 router.put(
 	"/:batchId",
-	authorize("ADMIN"),
+	authorize("TEACHER","ADMIN"),
 	validate(updateBatchSchema),
 	BatchController.updateBatch
 );

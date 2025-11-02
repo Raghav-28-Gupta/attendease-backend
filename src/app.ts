@@ -1,3 +1,4 @@
+import prisma from "@config/database";
 import express, { type Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -38,11 +39,25 @@ app.get("/health", (req, res) => {
 	});
 });
 
+// Add before error handler
+app.get("/api/test/db", async (req, res) => {
+	try {
+		await prisma.$queryRaw`SELECT 1`;
+		res.json({ status: "Database connected ✅" });
+	} catch (error) {
+		res.status(500).json({ 
+			status: "Database error ❌", 
+			// @ts-ignore
+			error: error.message 
+		});
+	}
+});
+
 // API routes
 app.use("/api", routes); // ✅ Use centralized routes
 
 // 404 handler
-app.use("*", (req, res) => {
+app.use((req, res) => {
 	res.status(404).json({
 		success: false,
 		message: "Route not found",

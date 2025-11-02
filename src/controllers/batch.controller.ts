@@ -65,12 +65,19 @@ export class BatchController {
 	static updateBatch = asyncHandler(async (req: Request, res: Response) => {
 		const { batchId } = req.params;
 		const data: UpdateBatchDTO = req.body;
+		const userRole = req.user!.role; 
+		const userId = req.user!.userId; 
 
 		if (!batchId) {
 			throw ApiError.badRequest("Batch ID is required");
 		}
 
-		const batch = await BatchService.updateBatch(batchId, data);
+		const batch = await BatchService.updateBatch(
+			batchId, 
+			data,
+			// @ts-ignore
+			userRole === "ADMIN" ? undefined : userId
+		);
 
 		res.json({
 			success: true,
