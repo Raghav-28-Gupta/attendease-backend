@@ -191,7 +191,7 @@ export class TimetableController {
 	/**
 	 * PUT /api/timetable/:entryId
 	 * Update timetable entry
-	 * Teacher who created it or admin
+	 * Teacher who created it
 	 */
 	static updateEntry = asyncHandler(async (req: Request, res: Response) => {
 		const { entryId } = req.params;
@@ -219,7 +219,7 @@ export class TimetableController {
 	/**
 	 * DELETE /api/timetable/:entryId
 	 * Delete timetable entry
-	 * Teacher who created it or admin
+	 * Teacher who created it
 	 */
 	static deleteEntry = asyncHandler(async (req: Request, res: Response) => {
 		const { entryId } = req.params;

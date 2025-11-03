@@ -147,18 +147,16 @@ export class SubjectEnrollmentController {
 	/**
 	 * DELETE /api/enrollments/:enrollmentId
 	 * Unenroll batch from subject (remove enrollment)
-	 * Teacher who owns the enrollment or admin
+	 * Teacher who owns the enrollment
 	 */
 	static unenrollBatch = asyncHandler(async (req: Request, res: Response) => {
 		const { enrollmentId } = req.params;
+		const teacherUserId = req.user!.userId;
 
 		// Validate enrollmentId exists
 		if (!enrollmentId) {
 			throw ApiError.badRequest("Enrollment ID is required");
 		}
-
-		// Admins can delete any enrollment, teachers only their own
-		const teacherUserId = req.user!.role === "TEACHER" ? req.user!.userId : undefined;
           
 		const result = await SubjectEnrollmentService.unenrollBatch(
 			enrollmentId,

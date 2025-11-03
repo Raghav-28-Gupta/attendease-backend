@@ -76,7 +76,7 @@ export class BatchController {
 			batchId, 
 			data,
 			// @ts-ignore
-			userRole === "ADMIN" ? undefined : userId
+			userId
 		);
 
 		res.json({
