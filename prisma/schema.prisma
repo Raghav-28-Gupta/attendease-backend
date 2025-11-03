@@ -155,7 +155,7 @@ model Subject {
   name       String // "Data Structures"
   semester   String // "Odd Semester 2025-26"
   department String // "Computer Science Engineering"
-  credits    Int? // Academic credits (e.g., 4)
+  credits    Float? // Academic credits (e.g., 4)
 
   // REMOVED: teacherId - subjects are now shared resources
   // Teachers are assigned via SubjectEnrollment

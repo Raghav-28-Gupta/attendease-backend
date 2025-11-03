@@ -55,7 +55,7 @@ export const createSubjectSchema = z.object({
 			.regex(/^[A-Z0-9]+$/, "Code must be uppercase alphanumeric"),
 		semester: z.string().min(1, "Semester is required"),
 		department: z.string().min(1, "Department is required"),
-		credits: z.number().int().positive().optional(), // ADDED
+		credits: z.number().positive().optional(), // ADDED
 		// REMOVED: batches array - now enrolled separately
 	}),
 });
@@ -68,7 +68,7 @@ export const updateSubjectSchema = z.object({
 		name: z.string().min(1).max(100).optional(),
 		semester: z.string().min(1).optional(),
 		department: z.string().min(1).optional(),
-		credits: z.number().int().positive().optional(),
+		credits: z.number().positive().optional(),
 	}),
 });
 
