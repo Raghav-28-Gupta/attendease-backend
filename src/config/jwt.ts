@@ -10,7 +10,7 @@ export const JWT_CONFIG = {
 export interface JWTPayload {
 	userId: string;
 	email: string;
-	role: "STUDENT" | "TEACHER" | "ADMIN";
+	role: "STUDENT" | "TEACHER";
 	identifier?: string; // studentId or employeeId
 }
 
