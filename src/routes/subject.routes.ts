@@ -44,28 +44,24 @@ router.get(
 	SubjectController.getTeacherSubjects
 );
 
-// Create subject (TEACHER or ADMIN)
+// Create subject
 router.post(
 	"/",
-	authorize("TEACHER", "ADMIN"),
+	authorize("TEACHER"),
 	validate(createSubjectSchema),
 	SubjectController.createSubject
 );
 
-// ===== ADMIN-ONLY ROUTES =====
-
-// Update subject (ADMIN only)
 router.put(
 	"/:subjectId",
-	authorize("ADMIN"),
+	authorize("TEACHER"),
 	validate(updateSubjectSchema),
 	SubjectController.updateSubject
 );
 
-// Delete subject (ADMIN only)
 router.delete(
 	"/:subjectId",
-	authorize("ADMIN"),
+	authorize("TEACHER"),
 	validate(subjectIdSchema),
 	SubjectController.deleteSubject
 );
