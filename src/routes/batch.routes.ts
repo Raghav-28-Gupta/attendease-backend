@@ -41,7 +41,6 @@ router.use(authenticate);
  * Get all batches (filtered by role in controller)
  * - Students: See their own batch
  * - Teachers: See batches they teach
- * - Admins: See all batches
  */
 router.get("/", BatchController.getAllBatches);
 
@@ -84,16 +83,16 @@ router.get(
 	StudentImportController.downloadTemplate
 );
 
-// ===== TEACHER/ADMIN ROUTES =====
+// ===== TEACHER ROUTES =====
 
 /**
  * POST /api/batches
  * Create new batch
- * Teachers can create batches, admins have full access
+ * Teachers can create batches, and have full access
  */
 router.post(
 	"/",
-	authorize("TEACHER", "ADMIN"),
+	authorize("TEACHER"),
 	validate(createBatchSchema),
 	BatchController.createBatch
 );
@@ -101,11 +100,10 @@ router.post(
 /**
  * PUT /api/batches/:batchId
  * Update batch details
- * Admins only (to prevent conflicts between teachers)
  */
 router.put(
 	"/:batchId",
-	authorize("TEACHER","ADMIN"),
+	authorize("TEACHER"),
 	validate(updateBatchSchema),
 	BatchController.updateBatch
 );
@@ -113,23 +111,21 @@ router.put(
 /**
  * DELETE /api/batches/:batchId
  * Delete batch
- * Admins only (critical operation)
  */
 router.delete(
 	"/:batchId",
-	authorize("ADMIN"),
+	authorize("TEACHER"),
 	validate(batchIdSchema),
 	BatchController.deleteBatch
 );
 
 /**
  * POST /api/batches/:batchId/students/import
- * Import students via CSV
- * Teachers who teach this batch or admins
+ * Import students from CSV (TEACHER only - must teach this batch)
  */
 router.post(
 	"/:batchId/students/import",
-	authorize("TEACHER", "ADMIN"),
+	authorize("TEACHER"),
 	validate(batchIdSchema),
 	upload.single("csv"),
 	StudentImportController.importStudentsCSV
@@ -138,11 +134,11 @@ router.post(
 /**
  * POST /api/batches/:batchId/students
  * Add single student manually
- * Teachers who teach this batch or admins
+ * Teachers who teach this batch
  */
 router.post(
 	"/:batchId/students",
-	authorize("TEACHER", "ADMIN"),
+	authorize("TEACHER"),
 	validate(batchIdSchema),
 	StudentImportController.addSingleStudent
 );
@@ -150,22 +146,22 @@ router.post(
 /**
  * DELETE /api/batches/:batchId/students/:studentId
  * Remove student from batch
- * Teachers who teach this batch or admins
+ * Teachers who teach this batch
  */
 router.delete(
 	"/:batchId/students/:studentId",
-	authorize("TEACHER", "ADMIN"),
+	authorize("TEACHER"),
 	StudentImportController.removeStudent
 );
 
 /**
  * POST /api/batches/:batchId/timetable/bulk
  * Bulk create timetable entries for batch
- * Teachers who teach this batch or admins
+ * Teachers who teach this batch
  */
 router.post(
 	"/:batchId/timetable/bulk",
-	authorize("TEACHER", "ADMIN"),
+	authorize("TEACHER"),
 	validate(bulkCreateTimetableSchema),
 	TimetableController.bulkCreateEntries
 );
