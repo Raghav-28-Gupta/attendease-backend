@@ -205,6 +205,20 @@ export class SubjectEnrollmentService {
 			teacherUserId
 		);
 
+		const teacher = await prisma.teacher.findUnique({
+            where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher profile not found");
+		}
+
+		if (enrollment.teacherId !== teacher.id) {
+			throw ApiError.forbidden(
+				"You can only unenroll batches from subjects you teach"
+			);
+		}
+
 		if (enrollment._count && enrollment._count.attendanceSessions > 0) {
 			throw ApiError.badRequest(
 				`Cannot unenroll batch with ${enrollment._count.attendanceSessions} attendance sessions. Archive instead?`

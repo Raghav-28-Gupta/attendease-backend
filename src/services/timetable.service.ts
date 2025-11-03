@@ -538,7 +538,7 @@ export class TimetableService {
 
 	/**
 	 * Update timetable entry
-	 * Teacher who created it (via enrollment) or admin
+	 * Teacher who created it (via enrollment)
 	 */
 	static async updateTimetableEntry(
 		entryId: string,
