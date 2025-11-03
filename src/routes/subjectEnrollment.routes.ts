@@ -31,7 +31,7 @@ router.get(
 /**
  * GET /api/enrollments/subjects/:subjectId
  * Get all batch enrollments for a subject
- * Teachers see only their enrollments, admins see all
+ * Teachers see only their enrollments
  */
 router.get(
 	"/subjects/:subjectId",
@@ -42,7 +42,7 @@ router.get(
 /**
  * GET /api/enrollments/:enrollmentId
  * Get specific enrollment details
- * Teachers see only their enrollments, admins see all
+ * Teachers see only their enrollments
  */
 router.get(
 	"/:enrollmentId",
@@ -50,7 +50,7 @@ router.get(
 	SubjectEnrollmentController.getEnrollmentById
 );
 
-// ===== TEACHER/ADMIN ROUTES =====
+// ===== TEACHER ROUTES =====
 
 /**
  * POST /api/enrollments
@@ -67,11 +67,11 @@ router.post(
 /**
  * PUT /api/enrollments/:enrollmentId
  * Update enrollment (change teacher, room, status, etc.)
- * Teacher who owns enrollment or admin
+ * Teacher who owns enrollment 
  */
 router.put(
 	"/:enrollmentId",
-	authorize("TEACHER", "ADMIN"),
+	authorize("TEACHER"),
 	validate(updateSubjectEnrollmentSchema),
 	SubjectEnrollmentController.updateEnrollment
 );
@@ -79,11 +79,11 @@ router.put(
 /**
  * DELETE /api/enrollments/:enrollmentId
  * Unenroll batch from subject (remove enrollment)
- * Teacher who owns enrollment or admin
+ * Teacher who owns enrollment
  */
 router.delete(
 	"/:enrollmentId",
-	authorize("TEACHER", "ADMIN"),
+	authorize("TEACHER"),
 	validate(subjectEnrollmentIdSchema),
 	SubjectEnrollmentController.unenrollBatch
 );
