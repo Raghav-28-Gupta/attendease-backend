@@ -10,13 +10,13 @@ import type {
 export class SubjectController {
 	/**
 	 * POST /api/subjects
-	 * Create new subject (ADMIN or TEACHER only via middleware)
+	 * Create new subject (TEACHER only via middleware)
 	 * Subjects are independent - no teacher ownership at creation
 	 */
 	static createSubject = asyncHandler(async (req: Request, res: Response) => {
 		const data: CreateSubjectDTO = req.body;
 
-		// Note: Authorization handled by route middleware (requireRole(['ADMIN', 'TEACHER']))
+		// Note: Authorization handled by route middleware (requireRole('TEACHER']))
 		const subject = await SubjectService.createSubject(data);
 
 		res.status(201).json({
@@ -92,13 +92,13 @@ export class SubjectController {
 
 	/**
 	 * PUT /api/subjects/:subjectId
-	 * Update subject details (ADMIN only via middleware)
+	 * Update subject details (TEACHER only via middleware)
 	 */
 	static updateSubject = asyncHandler(async (req: Request, res: Response) => {
 		const { subjectId } = req.params;
 		const data: UpdateSubjectDTO = req.body;
 
-		// Note: Authorization handled by route middleware (requireRole(['ADMIN']))
+		// Note: Authorization handled by route middleware (requireRole(['TEACHER']))
 		const subject = await SubjectService.updateSubject(subjectId!, data);
 
 		res.json({
@@ -110,12 +110,12 @@ export class SubjectController {
 
 	/**
 	 * DELETE /api/subjects/:subjectId
-	 * Delete subject (ADMIN only via middleware, only if no enrollments)
+	 * Delete subject (TEACHER only via middleware, only if no enrollments)
 	 */
 	static deleteSubject = asyncHandler(async (req: Request, res: Response) => {
 		const { subjectId } = req.params;
 
-		// Note: Authorization handled by route middleware (requireRole(['ADMIN']))
+		// Note: Authorization handled by route middleware (requireRole(['TEACHER']))
 		const result = await SubjectService.deleteSubject(subjectId!);
 
 		res.json({
