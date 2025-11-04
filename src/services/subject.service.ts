@@ -1,7 +1,10 @@
 import prisma from "@config/database";
 import { ApiError } from "@utils/ApiError";
 import logger from "@utils/logger";
-import type { CreateSubjectDTO, SubjectWithEnrollments } from "@local-types/models.types";
+import type {
+	CreateSubjectDTO,
+	SubjectWithEnrollments,
+} from "@local-types/models.types";
 
 export class SubjectService {
 	/**
@@ -16,9 +19,7 @@ export class SubjectService {
 		});
 
 		if (existing) {
-			throw ApiError.badRequest(
-				`Subject code ${data.code} already exists`
-			);
+			throw ApiError.badRequest(`Subject code ${data.code} already exists`);
 		}
 
 		const subject = await prisma.subject.create({
@@ -294,8 +295,12 @@ export class SubjectService {
 			totalEnrollments: subject.subjectEnrollments.length,
 			totalStudents: 0,
 			totalSessions: 0,
+			averageAttendance: 0,
 			enrollments: [] as any[],
 		};
+
+		let totalPresent = 0;
+		let totalPossible = 0;
 
 		// Calculate stats for each enrollment
 		for (const enrollment of subject.subjectEnrollments) {
@@ -306,6 +311,32 @@ export class SubjectService {
 			stats.totalStudents += studentCount;
 			stats.totalSessions += enrollment._count?.attendanceSessions || 0;
 
+			const sessions = await prisma.attendanceSession.findMany({
+				where: { subjectEnrollmentId: enrollment.id },
+				include: {
+					records: {
+						select: {
+							status: true,
+						},
+					},
+				},
+			});
+
+			let enrollmentPresent = 0;
+			sessions.forEach((session) => {
+				const presentCount = session.records.filter(
+					(r) =>
+						r.status === "PRESENT" ||
+						r.status === "LATE" ||
+						r.status === "EXCUSED"
+				).length;
+				enrollmentPresent += presentCount;
+			});
+
+			const enrollmentPossible = sessions.length * studentCount;
+			totalPresent += enrollmentPresent;
+			totalPossible += enrollmentPossible;
+
 			stats.enrollments.push({
 				batchCode: enrollment.batch.code,
 				batchName: enrollment.batch.name,
@@ -314,13 +345,15 @@ export class SubjectService {
 				sessions: enrollment._count?.attendanceSessions || 0,
 				capacity: enrollment.batch.capacity,
 				utilization: enrollment.batch.capacity
-					? (
-							(studentCount / enrollment.batch.capacity) *
-							100
-					  ).toFixed(1)
+					? ((studentCount / enrollment.batch.capacity) * 100).toFixed(1)
 					: null,
 			});
 		}
+
+		stats.averageAttendance =
+			totalPossible > 0
+				? Math.round((totalPresent / totalPossible) * 100 * 100) / 100 // Round to 2 decimals
+				: 0;
 
 		return stats;
 	}
