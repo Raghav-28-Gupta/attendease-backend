@@ -129,4 +129,10 @@ router.get(
 	AttendanceController.getStudentStats
 );
 
+router.get(
+    "/students/me/summary",
+    authenticate,  // Students can access their own summary
+    AttendanceController.getStudentSummary
+);
+
 export default router;

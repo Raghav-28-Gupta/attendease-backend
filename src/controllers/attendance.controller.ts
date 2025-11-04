@@ -186,6 +186,25 @@ export class AttendanceController {
 	);
 
 	/**
+	 * GET /api/attendance/students/me/summary
+	 * Get logged-in student's attendance summary across all subjects
+	*/
+	static getStudentSummary = asyncHandler(
+		async (req: Request, res: Response) => {
+			const studentUserId = req.user!.userId;
+
+			const summary = await AttendanceService.getStudentAttendanceSummary(
+				studentUserId
+			);
+
+			res.json({
+				success: true,
+				data: summary,
+			});
+		}
+	);
+
+	/**
 	 * GET /api/attendance/enrollments/:enrollmentId/summary
 	 * Get attendance summary for all students in an enrollment
 	 */

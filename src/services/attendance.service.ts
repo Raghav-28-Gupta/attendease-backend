@@ -956,6 +956,108 @@ export class AttendanceService {
 		};
 	}
 
+
+	static async getStudentAttendanceSummary(studentUserId: string): Promise<{
+		student: {
+			studentId: string;
+			firstName: string;
+			lastName: string;
+		};
+		subjects: {
+			subject: {
+				code: string;
+				name: string;
+			};
+			stats: AttendanceStatsDTO;
+		}[];
+		overall: {
+			totalSessions: number;
+			totalPresent: number;
+			averagePercentage: number;
+			status: "GOOD" | "WARNING" | "CRITICAL";
+		};
+	}> {
+		const student = await prisma.student.findUnique({
+			where: { userId: studentUserId },
+			include: {
+				batch: {
+					include: {
+						subjectEnrollments: {
+							include: {
+								subject: {
+									select: {
+										code: true,
+										name: true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		});
+
+		if (!student) {
+			throw ApiError.notFound("Student profile not found");
+		}
+
+		if (!student.batch) {
+			throw ApiError.notFound("Student not assigned to batch");
+		}
+
+		// Calculate attendance for each subject
+		const subjects = await Promise.all(
+			student.batch.subjectEnrollments.map(async (enrollment) => {
+				const stats = await AttendanceService.getStudentAttendanceStats(
+					student.id,
+					enrollment.id
+				);
+
+				return {
+					subject: enrollment.subject,
+					stats,
+				};
+			})
+		);
+
+		// Calculate overall stats
+		const totalSessions = subjects.reduce(
+			(sum, subj) => sum + subj.stats.totalSessions,
+			0
+		);
+		const totalPresent = subjects.reduce(
+			(sum, subj) =>
+				sum + subj.stats.present + subj.stats.late + subj.stats.excused,
+			0
+		);
+		const averagePercentage =
+			totalSessions > 0 ? (totalPresent / totalSessions) * 100 : 0;
+
+		let overallStatus: "GOOD" | "WARNING" | "CRITICAL" = "GOOD";
+		if (averagePercentage < 65) {
+			overallStatus = "CRITICAL";
+		} else if (averagePercentage < 75) {
+			overallStatus = "WARNING";
+		}
+
+		return {
+			student: {
+				studentId: student.studentId,
+				firstName: student.firstName,
+				lastName: student.lastName,
+			},
+			subjects,
+			overall: {
+				totalSessions,
+				totalPresent,
+				averagePercentage: Math.round(averagePercentage * 100) / 100,
+				status: overallStatus,
+			},
+		};
+	}
+
+	// ...existing code...
+
 	static async deleteSession(sessionId: string, teacherUserId: string) {
 		// ... existing code unchanged ...
 		const teacher = await prisma.teacher.findUnique({
