@@ -247,9 +247,6 @@ export class SubjectEnrollmentService {
 			where: { batchId, status: "ACTIVE" },
 			include: {
 				subject: {
-					include: {
-						// subject has no direct teacher relation; teacher info is on enrollment
-					},
 					select: {
 						id: true,
 						code: true,

@@ -131,7 +131,7 @@ export const enrollBatchesSchema = z.object({
 		batchIds: z
 			.array(z.string().uuid("Invalid batch ID"))
 			.min(1, "At least one batch required"),
-		teacherId: z.string().uuid("Invalid teacher ID"), // ADDED - Required
+		// teacherId: z.string().uuid("Invalid teacher ID"), 
 		semester: z.string().optional(),
 		room: z.string().optional(), // ADDED
 	}),
