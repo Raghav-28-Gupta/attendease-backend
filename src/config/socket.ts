@@ -22,16 +22,11 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
 			// Fallback 1: Postman may send auth as a query param (JSON encoded)
 			if (!token) {
-				const q =
-					(socket.handshake.query as any).auth ||
-					(socket.handshake.query as any).token;
+				const q = (socket.handshake.query as any).auth || (socket.handshake.query as any).token;
 				if (q) {
 					try {
 						// q may be a JSON string like '{"token":"..."}' or raw token
-						const parsed =
-							typeof q === "string" && q.trim().startsWith("{")
-								? JSON.parse(q)
-								: q;
+						const parsed = typeof q === "string" && q.trim().startsWith("{") ? JSON.parse(q): q;
 						token = parsed?.token ?? parsed;
 					} catch (e) {
 						token = q;

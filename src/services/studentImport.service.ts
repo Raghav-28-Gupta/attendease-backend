@@ -39,38 +39,67 @@ export class StudentImportService {
 		const headers = lines[0]!.split(",").map((h) => h.trim().toLowerCase());
 
 		const requiredHeaders = [
-			"studentId",
-			"firstName",
-			"lastName",
+			"student_id",
+			"first_name",
+			"last_name",
 			"email",
 		];
-		const missingHeaders = requiredHeaders.filter(
-			(h) => !headers.includes(h)
+		const alternativeHeaders = [
+			"studentid",
+			"firstname",
+			"lastname",
+			"email",
+		];
+
+		const hasRequiredHeaders = requiredHeaders.every((h) =>
+			headers.includes(h)
+		);
+		const hasAlternativeHeaders = alternativeHeaders.every((h) =>
+			headers.includes(h)
 		);
 
-		if (missingHeaders.length > 0) {
+		if (!hasRequiredHeaders && !hasAlternativeHeaders) {
 			throw ApiError.badRequest(
-				`Missing required columns: ${missingHeaders.join(", ")}`
+				`Missing required columns. Expected: student_id, first_name, last_name, email`
 			);
 		}
+
+		const columnMap: Record<string, string> = {
+			student_id: "studentId",
+			studentid: "studentId",
+			first_name: "firstName",
+			firstname: "firstName",
+			last_name: "lastName",
+			lastname: "lastName",
+			email: "email",
+			phone: "phone",
+		};
 
 		const students: ImportStudentDTO[] = [];
 
 		for (let i = 1; i < lines.length; i++) {
-			const values = lines[i]!.split(",").map((v) => v.trim());
+			const line = lines[i]?.trim();
+			if (!line) continue;
 
-			if (values.length !== headers.length) {
-				throw ApiError.badRequest(
-					`Row ${i + 1}: Column count mismatch`
-				);
-			}
+			const values = line.split(",").map((v) => v.trim());
+			const student: any = {};
 
-			const studentData: any = {};
 			headers.forEach((header, index) => {
-				studentData[header] = values[index];
+				const mappedKey = columnMap[header];
+				if (mappedKey && values[index]) {
+					student[mappedKey] = values[index];
+				}
 			});
 
-			students.push(studentData as ImportStudentDTO);
+			// Validate required fields
+			if (
+				student.studentId &&
+				student.firstName &&
+				student.lastName &&
+				student.email
+			) {
+				students.push(student as ImportStudentDTO);
+			}
 		}
 
 		return students;
