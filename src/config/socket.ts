@@ -17,7 +17,35 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 	// Authentication middleware
 	io.use(async (socket: Socket, next) => {
 		try {
-			const token = socket.handshake.auth.token;
+			// Prefer Socket.IO auth payload
+			let token: string | undefined = (socket.handshake as any).auth?.token;
+
+			// Fallback 1: Postman may send auth as a query param (JSON encoded)
+			if (!token) {
+				const q =
+					(socket.handshake.query as any).auth ||
+					(socket.handshake.query as any).token;
+				if (q) {
+					try {
+						// q may be a JSON string like '{"token":"..."}' or raw token
+						const parsed =
+							typeof q === "string" && q.trim().startsWith("{")
+								? JSON.parse(q)
+								: q;
+						token = parsed?.token ?? parsed;
+					} catch (e) {
+						token = q;
+					}
+				}
+			}
+
+			// Fallback 2: Authorization header (Bearer ...)
+			if (!token) {
+				const hdr = (socket.handshake as any).headers?.authorization;
+				if (typeof hdr === "string" && hdr.startsWith("Bearer ")) {
+					token = hdr.split(" ")[1];
+				}
+			}
 
 			if (!token) {
 				return next(new Error("Authentication token required"));
@@ -61,9 +89,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
 			if (student?.batchId) {
 				socket.join(`batch:${student.batchId}`);
-				logger.info(
-					`Student joined batch room: batch:${student.batchId}`
-				);
+				logger.info(`Student joined batch room: batch:${student.batchId}`);
 			}
 		} else if (user.role === "TEACHER") {
 			// Get teacher's enrollments and join subject rooms
