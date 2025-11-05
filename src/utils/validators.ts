@@ -212,9 +212,9 @@ export const removeStudentSchema = z.object({
 
 // CSV row validation (used in service)
 export const csvStudentSchema = z.object({
-	student_id: z.string().min(1, "Student ID is required"),
-	first_name: z.string().min(1, "First name is required"),
-	last_name: z.string().min(1, "Last name is required"),
+	studentId: z.string().min(1, "Student ID is required"),
+	firstName: z.string().min(1, "First name is required"),
+	lastName: z.string().min(1, "Last name is required"),
 	email: z.string().email("Invalid email format"),
 	phone: z.string().optional(),
 });

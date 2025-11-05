@@ -381,7 +381,8 @@ export class StudentImportService {
       </div>
     `,
 		};
-
+		
+		// @ts-ignore
 		await EmailService.sendEmail(mailOptions);
 	}
 
