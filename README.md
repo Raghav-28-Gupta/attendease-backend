@@ -4,66 +4,69 @@ A comprehensive attendance management system backend built with TypeScript, Expr
 
 ## 📋 Table of Contents
 
-- [Features](#features)
-- [Tech Stack](#tech-stack)
-- [Architecture](#architecture)
-- [Getting Started](#getting-started)
-- [Database Schema](#database-schema)
-- [Authentication Flow](#authentication-flow)
-- [API Endpoints](#api-endpoints)
-- [Data Models](#data-models)
-- [WebSocket Events](#websocket-events)
-- [Notification System](#notification-system)
-- [Testing Examples](#testing-examples)
-- [Deployment](#deployment)
-- [Troubleshooting](#troubleshooting)
+-  [Features](#features)
+-  [Tech Stack](#tech-stack)
+-  [Architecture](#architecture)
+-  [Getting Started](#getting-started)
+-  [Database Schema](#database-schema)
+-  [Authentication Flow](#authentication-flow)
+-  [API Endpoints](#api-endpoints)
+-  [Data Models](#data-models)
+-  [WebSocket Events](#websocket-events)
+-  [Notification System](#notification-system)
+-  [Testing Examples](#testing-examples)
+-  [Deployment](#deployment)
+-  [Troubleshooting](#troubleshooting)
 
 ## ✨ Features
 
 ### For Teachers
-- 📚 **Batch Management**: Create and manage student batches/classes
-- 👥 **Student Import**: Bulk import students via CSV with validation
-- 📖 **Subject Management**: Create subjects with credit hours
-- 🔗 **Subject Enrollment**: Enroll entire batches to subjects
-- ✅ **Attendance Sessions**: Create and manage attendance sessions
-- 📊 **Dashboard Analytics**: View enrollment statistics and low-attendance alerts
-- 📅 **Timetable Management**: Maintain weekly schedules for batches
-- 🔔 **Automated Notifications**: Push and email alerts for low attendance
+
+-  📚 **Batch Management**: Create and manage student batches/classes
+-  👥 **Student Import**: Bulk import students via CSV with validation
+-  📖 **Subject Management**: Create subjects with credit hours
+-  🔗 **Subject Enrollment**: Enroll entire batches to subjects
+-  ✅ **Attendance Sessions**: Create and manage attendance sessions
+-  📊 **Dashboard Analytics**: View enrollment statistics and low-attendance alerts
+-  📅 **Timetable Management**: Maintain weekly schedules for batches
+-  🔔 **Automated Notifications**: Push and email alerts for low attendance
 
 ### For Students
-- 📱 **Personal Dashboard**: View enrolled subjects and attendance statistics
-- 📈 **Attendance Tracking**: Monitor attendance percentage with status indicators (GOOD/WARNING/CRITICAL)
-- 🔔 **Real-time Alerts**: Receive instant notifications when attendance is marked
-- 📧 **Email Notifications**: Get alerts when attendance falls below thresholds
-- 📊 **Subject-wise Stats**: Detailed attendance breakdown per subject
+
+-  📱 **Personal Dashboard**: View enrolled subjects and attendance statistics
+-  📈 **Attendance Tracking**: Monitor attendance percentage with status indicators (GOOD/WARNING/CRITICAL)
+-  🔔 **Real-time Alerts**: Receive instant notifications when attendance is marked
+-  📧 **Email Notifications**: Get alerts when attendance falls below thresholds
+-  📊 **Subject-wise Stats**: Detailed attendance breakdown per subject
 
 ### System Features
-- 🔐 **JWT Authentication**: Secure access and refresh token mechanism
-- ✉️ **Email Verification**: Account activation via email
-- 🔄 **Real-time Updates**: WebSocket integration for live notifications
-- 📲 **Push Notifications**: Firebase Cloud Messaging for mobile apps
-- 🛡️ **Role-based Access**: Separate permissions for TEACHER and STUDENT roles
-- 🚦 **Rate Limiting**: API protection against abuse
-- 📝 **Request Validation**: Zod schemas for robust input validation
-- 🔍 **Error Logging**: Winston-based logging system
+
+-  🔐 **JWT Authentication**: Secure access and refresh token mechanism
+-  ✉️ **Email Verification**: Account activation via email
+-  🔄 **Real-time Updates**: WebSocket integration for live notifications
+-  📲 **Push Notifications**: Firebase Cloud Messaging for mobile apps
+-  🛡️ **Role-based Access**: Separate permissions for TEACHER and STUDENT roles
+-  🚦 **Rate Limiting**: API protection against abuse
+-  📝 **Request Validation**: Zod schemas for robust input validation
+-  🔍 **Error Logging**: Winston-based logging system
 
 ## 🛠️ Tech Stack
 
-- **Runtime**: [Bun](https://bun.sh) v1.2.18 (fast Node.js alternative)
-- **Framework**: Express v5.1.0
-- **Language**: TypeScript v5
-- **Database**: PostgreSQL (Neon Cloud) with Prisma ORM v6.18.0
-- **Authentication**: JWT (jsonwebtoken) + bcrypt
-- **Validation**: Zod v4.1.12
-- **Real-time**: Socket.IO v4.8.1
-- **Notifications**: 
-  - Firebase Admin SDK v13.5.0 (FCM)
-  - Nodemailer v7.0.9 (Email)
-- **Security**: 
-  - Helmet v8.1.0
-  - express-rate-limit v8.1.0
-  - CORS v2.8.5
-- **Logging**: Winston v3.18.3
+-  **Runtime**: [Bun](https://bun.sh) v1.2.18 (fast Node.js alternative)
+-  **Framework**: Express v5.1.0
+-  **Language**: TypeScript v5
+-  **Database**: PostgreSQL (Neon Cloud) with Prisma ORM v6.18.0
+-  **Authentication**: JWT (jsonwebtoken) + bcrypt
+-  **Validation**: Zod v4.1.12
+-  **Real-time**: Socket.IO v4.8.1
+-  **Notifications**:
+   -  Firebase Admin SDK v13.5.0 (FCM)
+   -  Nodemailer v7.0.9 (Email)
+-  **Security**:
+   -  Helmet v8.1.0
+   -  express-rate-limit v8.1.0
+   -  CORS v2.8.5
+-  **Logging**: Winston v3.18.3
 
 ## 🏗️ Architecture
 
@@ -104,51 +107,55 @@ A comprehensive attendance management system backend built with TypeScript, Expr
 ```
 
 ### Design Pattern: MVC + Service Layer
-- **Routes**: Define endpoints and apply middleware
-- **Controllers**: Handle HTTP concerns (req/res)
-- **Services**: Implement business logic and data access
-- **Models**: Prisma schema defines database structure
-- **Middleware**: Cross-cutting concerns (auth, validation, errors)
+
+-  **Routes**: Define endpoints and apply middleware
+-  **Controllers**: Handle HTTP concerns (req/res)
+-  **Services**: Implement business logic and data access
+-  **Models**: Prisma schema defines database structure
+-  **Middleware**: Cross-cutting concerns (auth, validation, errors)
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) v1.2.18 or higher
-- PostgreSQL database (e.g., [Neon](https://neon.tech))
-- Firebase project (for FCM)
-- Gmail account (for email notifications)
+-  [Bun](https://bun.sh) v1.2.18 or higher
+-  PostgreSQL database (e.g., [Neon](https://neon.tech))
+-  Firebase project (for FCM)
+-  Gmail account (for email notifications)
 
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd attendease-backend
    ```
 
 2. **Install dependencies**
+
    ```bash
    bun install
    ```
 
 3. **Set up environment variables**
-   
+
    Create `.env` file in the root directory:
+
    ```env
    # Server Configuration
    NODE_ENV=development
    PORT=5000
-   
+
    # Database
    DATABASE_URL="postgresql://user:password@host/database?sslmode=require"
-   
+
    # JWT Secrets (use strong random strings)
    ACCESS_TOKEN_SECRET="your-access-token-secret-min-32-chars"
    REFRESH_TOKEN_SECRET="your-refresh-token-secret-min-32-chars"
    ACCESS_TOKEN_EXPIRY="15m"
    REFRESH_TOKEN_EXPIRY="7d"
-   
+
    # Email Configuration (Gmail)
    EMAIL_HOST="smtp.gmail.com"
    EMAIL_PORT=587
@@ -156,50 +163,55 @@ A comprehensive attendance management system backend built with TypeScript, Expr
    EMAIL_USER="your-email@gmail.com"
    EMAIL_PASSWORD="your-app-password"  # Generate from Google Account settings
    EMAIL_FROM="AttendEase <your-email@gmail.com>"
-   
+
    # Firebase Admin SDK (for FCM)
    FIREBASE_PROJECT_ID="your-project-id"
    FIREBASE_CLIENT_EMAIL="firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com"
    FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYourPrivateKeyHere\n-----END PRIVATE KEY-----"
-   
+
    # Frontend URL (for CORS and email links)
    FRONTEND_URL="http://localhost:3000"
-   
+
    # Rate Limiting
    RATE_LIMIT_WINDOW_MS=900000  # 15 minutes
    RATE_LIMIT_MAX_REQUESTS=100
    ```
 
    **Important Notes:**
-   - **Gmail App Password**: Don't use your regular Gmail password. Generate an app-specific password:
-     1. Go to Google Account → Security → 2-Step Verification
-     2. Scroll to "App passwords"
-     3. Generate password for "Mail" app
-   - **Firebase Private Key**: Must be a single-line string with `\n` for newlines
-   - **Database URL**: Neon provides this in your project dashboard
+
+   -  **Gmail App Password**: Don't use your regular Gmail password. Generate an app-specific password:
+      1. Go to Google Account → Security → 2-Step Verification
+      2. Scroll to "App passwords"
+      3. Generate password for "Mail" app
+   -  **Firebase Private Key**: Must be a single-line string with `\n` for newlines
+   -  **Database URL**: Neon provides this in your project dashboard
 
 4. **Set up the database**
-   
+
    Generate Prisma client:
+
    ```bash
    bun run prisma:generate
    ```
-   
+
    Run migrations:
+
    ```bash
    bun run prisma:migrate
    ```
-   
+
    (Optional) Open Prisma Studio to view data:
+
    ```bash
    bun run prisma:studio
    ```
 
 5. **Run the development server**
+
    ```bash
    bun run dev
    ```
-   
+
    The server will start on `http://localhost:5000` with hot-reload enabled.
 
 ### Available Scripts
@@ -250,24 +262,25 @@ AttendanceSession (Class meeting)
 
 ### Key Relationships
 
-- **Teacher owns**: Batches, Subjects, Timetable entries
-- **Batch enrolls in**: Multiple Subjects (many-to-many)
-- **Student belongs to**: One Batch, multiple SubjectEnrollments
-- **AttendanceSession**: Linked to SubjectEnrollment (Batch + Subject)
-- **AttendanceRecord**: Links Student + AttendanceSession (unique constraint prevents duplicates)
+-  **Teacher owns**: Batches, Subjects, Timetable entries
+-  **Batch enrolls in**: Multiple Subjects (many-to-many)
+-  **Student belongs to**: One Batch, multiple SubjectEnrollments
+-  **AttendanceSession**: Linked to SubjectEnrollment (Batch + Subject)
+-  **AttendanceRecord**: Links Student + AttendanceSession (unique constraint prevents duplicates)
 
 ### Important Constraints
 
-- `User.email`: Unique
-- `Student.rollNumber`: Unique within Batch
-- `SubjectEnrollment`: Unique (subjectId, batchId) pair
-- `AttendanceRecord`: Unique (studentId, sessionId) pair - allows upsert for corrections
+-  `User.email`: Unique
+-  `Student.rollNumber`: Unique within Batch
+-  `SubjectEnrollment`: Unique (subjectId, batchId) pair
+-  `AttendanceRecord`: Unique (studentId, sessionId) pair - allows upsert for corrections
 
 ## 🔐 Authentication Flow
 
 ### User Roles
-- **TEACHER**: Full access to create/manage batches, subjects, attendance
-- **STUDENT**: Read-only access to own dashboard and attendance data
+
+-  **TEACHER**: Full access to create/manage batches, subjects, attendance
+-  **STUDENT**: Read-only access to own dashboard and attendance data
 
 ### Signup & Verification Flow
 
@@ -290,14 +303,15 @@ AttendanceSession (Class meeting)
 ### Authentication Headers
 
 All protected routes require:
+
 ```
 Authorization: Bearer <accessToken>
 ```
 
 ### Token Lifecycle
 
-- **Access Token**: Short-lived (15 minutes), used for API requests
-- **Refresh Token**: Long-lived (7 days), used to obtain new access tokens
+-  **Access Token**: Short-lived (15 minutes), used for API requests
+-  **Refresh Token**: Long-lived (7 days), used to obtain new access tokens
 
 #### Refresh Token Flow
 
@@ -357,15 +371,15 @@ Base URL: `http://localhost:5000/api`
 
 ### 🔑 Authentication (`/api/auth`)
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/signup` | ❌ | Create new account (TEACHER or STUDENT) |
-| POST | `/login` | ❌ | Login and receive tokens |
-| POST | `/logout` | ✅ | Logout (clears tokens) |
-| GET | `/verify-email?token=` | ❌ | Verify email address |
-| POST | `/resend-verification` | ❌ | Resend verification email |
-| POST | `/refresh-token` | ✅ Refresh | Get new access token |
-| GET | `/me` | ✅ | Get current user profile |
+| Method | Endpoint               | Auth       | Description                             |
+| ------ | ---------------------- | ---------- | --------------------------------------- |
+| POST   | `/signup`              | ❌         | Create new account (TEACHER or STUDENT) |
+| POST   | `/login`               | ❌         | Login and receive tokens                |
+| POST   | `/logout`              | ✅         | Logout (clears tokens)                  |
+| GET    | `/verify-email?token=` | ❌         | Verify email address                    |
+| POST   | `/resend-verification` | ❌         | Resend verification email               |
+| POST   | `/refresh-token`       | ✅ Refresh | Get new access token                    |
+| GET    | `/me`                  | ✅         | Get current user profile                |
 
 **Request Examples:**
 
@@ -394,16 +408,16 @@ POST /api/auth/login
 
 **Teacher Only**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | List all batches (owned by teacher) |
-| POST | `/` | Create new batch |
-| GET | `/:batchId` | Get batch details with students |
-| PUT | `/:batchId` | Update batch details |
-| DELETE | `/:batchId` | Delete batch (cascades to students) |
-| POST | `/:batchId/students/import` | Bulk import students via CSV |
-| GET | `/:batchId/timetable` | Get batch timetable |
-| PUT | `/:batchId/timetable` | Update batch timetable |
+| Method | Endpoint                    | Description                         |
+| ------ | --------------------------- | ----------------------------------- |
+| GET    | `/`                         | List all batches (owned by teacher) |
+| POST   | `/`                         | Create new batch                    |
+| GET    | `/:batchId`                 | Get batch details with students     |
+| PUT    | `/:batchId`                 | Update batch details                |
+| DELETE | `/:batchId`                 | Delete batch (cascades to students) |
+| POST   | `/:batchId/students/import` | Bulk import students via CSV        |
+| GET    | `/:batchId/timetable`       | Get batch timetable                 |
+| PUT    | `/:batchId/timetable`       | Update batch timetable              |
 
 **Request Examples:**
 
@@ -456,13 +470,13 @@ PUT /api/batches/:batchId/timetable
 
 **Teacher Only**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | List all subjects (owned by teacher) |
-| POST | `/` | Create new subject |
-| GET | `/:subjectId` | Get subject details |
-| PUT | `/:subjectId` | Update subject |
-| DELETE | `/:subjectId` | Delete subject |
+| Method | Endpoint      | Description                          |
+| ------ | ------------- | ------------------------------------ |
+| GET    | `/`           | List all subjects (owned by teacher) |
+| POST   | `/`           | Create new subject                   |
+| GET    | `/:subjectId` | Get subject details                  |
+| PUT    | `/:subjectId` | Update subject                       |
+| DELETE | `/:subjectId` | Delete subject                       |
 
 **Request Examples:**
 
@@ -482,13 +496,13 @@ POST /api/subjects
 
 **Teacher Only**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | List all enrollments |
-| POST | `/enroll-batches` | Enroll multiple batches to a subject |
-| GET | `/:enrollmentId` | Get enrollment details |
-| GET | `/:enrollmentId/students` | Get students in this enrollment |
-| DELETE | `/:enrollmentId` | Delete enrollment (removes subject from batch) |
+| Method | Endpoint                  | Description                                    |
+| ------ | ------------------------- | ---------------------------------------------- |
+| GET    | `/`                       | List all enrollments                           |
+| POST   | `/enroll-batches`         | Enroll multiple batches to a subject           |
+| GET    | `/:enrollmentId`          | Get enrollment details                         |
+| GET    | `/:enrollmentId/students` | Get students in this enrollment                |
+| DELETE | `/:enrollmentId`          | Delete enrollment (removes subject from batch) |
 
 **Request Examples:**
 
@@ -509,21 +523,21 @@ POST /api/enrollments/enroll-batches
 
 **Teacher Routes:**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/sessions` | List all sessions (owned by teacher) |
-| POST | `/sessions` | Create attendance session |
-| GET | `/sessions/:sessionId` | Get session details with records |
-| PUT | `/sessions/:sessionId` | Update session details |
-| DELETE | `/sessions/:sessionId` | Delete session (cascades to records) |
-| GET | `/sessions/:sessionId/students` | Get eligible students for marking |
-| POST | `/sessions/:sessionId/mark` | Mark attendance for multiple students |
+| Method | Endpoint                        | Description                           |
+| ------ | ------------------------------- | ------------------------------------- |
+| GET    | `/sessions`                     | List all sessions (owned by teacher)  |
+| POST   | `/sessions`                     | Create attendance session             |
+| GET    | `/sessions/:sessionId`          | Get session details with records      |
+| PUT    | `/sessions/:sessionId`          | Update session details                |
+| DELETE | `/sessions/:sessionId`          | Delete session (cascades to records)  |
+| GET    | `/sessions/:sessionId/students` | Get eligible students for marking     |
+| POST   | `/sessions/:sessionId/mark`     | Mark attendance for multiple students |
 
 **Student Routes:**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/students/me/summary` | Get attendance summary across all subjects |
+| Method | Endpoint               | Description                                |
+| ------ | ---------------------- | ------------------------------------------ |
+| GET    | `/students/me/summary` | Get attendance summary across all subjects |
 
 **Request Examples:**
 
@@ -547,9 +561,9 @@ GET /api/attendance/sessions/:sessionId/students
 POST /api/attendance/sessions/:sessionId/mark
 {
   "records": [
-    { "studentId": "uuid-student-1", "status": "PRESENT" },
-    { "studentId": "uuid-student-2", "status": "ABSENT" },
-    { "studentId": "uuid-student-3", "status": "LATE" }
+    { "studentId": "rollNo.-student-1", "status": "PRESENT" },
+    { "studentId": "rollNo.-student-2", "status": "ABSENT" },
+    { "studentId": "rollNo.-student-3", "status": "LATE" }
   ]
 }
 # Uses upsert: can update existing records (allows corrections)
@@ -560,15 +574,15 @@ POST /api/attendance/sessions/:sessionId/mark
 
 **Teacher Dashboard:**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/teacher` | Get overview: enrollments, avg attendance, recent sessions |
+| Method | Endpoint   | Description                                                |
+| ------ | ---------- | ---------------------------------------------------------- |
+| GET    | `/teacher` | Get overview: enrollments, avg attendance, recent sessions |
 
 **Student Dashboard:**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/student` | Get enrolled subjects with attendance stats |
+| Method | Endpoint   | Description                                 |
+| ------ | ---------- | ------------------------------------------- |
+| GET    | `/student` | Get enrolled subjects with attendance stats |
 
 **Response Examples:**
 
@@ -621,10 +635,10 @@ POST /api/attendance/sessions/:sessionId/mark
 
 **Student Routes:**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/fcm-token` | Register FCM token for push notifications |
-| DELETE | `/fcm-token` | Unregister FCM token |
+| Method | Endpoint     | Description                               |
+| ------ | ------------ | ----------------------------------------- |
+| POST   | `/fcm-token` | Register FCM token for push notifications |
+| DELETE | `/fcm-token` | Unregister FCM token                      |
 
 **Request Examples:**
 
@@ -648,30 +662,30 @@ DELETE /api/notifications/fcm-token
 
 **Teacher Routes:**
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/:studentId` | Get student details with attendance stats |
+| Method | Endpoint      | Description                               |
+| ------ | ------------- | ----------------------------------------- |
+| GET    | `/:studentId` | Get student details with attendance stats |
 
 **Response Example:**
 
 ```json
 {
-  "id": "uuid",
-  "studentId": "CS2024001",
-  "name": "John Doe",
-  "email": "john@example.com",
-  "batch": { "code": "CS-2024-A", "name": "..." },
-  "enrollments": [
-    {
-      "subject": { "code": "CS101", "name": "Data Structures" },
-      "stats": {
-        "totalSessions": 20,
-        "attendedSessions": 17,
-        "percentage": 85.0,
-        "status": "GOOD"
-      }
-    }
-  ]
+	"id": "uuid",
+	"studentId": "CS2024001", //Roll number
+	"name": "John Doe",
+	"email": "john@example.com",
+	"batch": { "code": "CS-2024-A", "name": "..." },
+	"enrollments": [
+		{
+			"subject": { "code": "CS101", "name": "Data Structures" },
+			"stats": {
+				"totalSessions": 20,
+				"attendedSessions": 17,
+				"percentage": 85.0,
+				"status": "GOOD"
+			}
+		}
+	]
 }
 ```
 
@@ -691,43 +705,43 @@ type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE";
 
 ### Attendance Thresholds
 
-- **GOOD**: ≥ 75% attendance (green status)
-- **WARNING**: 65-74% attendance (yellow status)
-- **CRITICAL**: < 65% attendance (red status, triggers email alert)
+-  **GOOD**: ≥ 75% attendance (green status)
+-  **WARNING**: 65-74% attendance (yellow status)
+-  **CRITICAL**: < 65% attendance (red status, triggers email alert)
 
 ### Key DTOs (Data Transfer Objects)
 
 ```typescript
 // Attendance Stats for a Subject
 interface AttendanceStatsDTO {
-  totalSessions: number;
-  attendedSessions: number;
-  percentage: number;
-  status: "GOOD" | "WARNING" | "CRITICAL";
-  sessionsNeeded: number;  // To reach 75%
+	totalSessions: number;
+	attendedSessions: number;
+	percentage: number;
+	status: "GOOD" | "WARNING" | "CRITICAL";
+	sessionsNeeded: number; // To reach 75%
 }
 
 // Attendance Session with Details
 interface AttendanceSessionWithDetails {
-  id: string;
-  date: Date;
-  startTime: string;  // "HH:MM:SS"
-  endTime: string;
-  topic?: string;
-  notes?: string;
-  subjectEnrollment: {
-    subject: { code: string; name: string };
-    batch: { code: string; name: string };
-  };
-  records: AttendanceRecord[];  // Who attended
+	id: string;
+	date: Date;
+	startTime: string; // "HH:MM:SS"
+	endTime: string;
+	topic?: string;
+	notes?: string;
+	subjectEnrollment: {
+		subject: { code: string; name: string };
+		batch: { code: string; name: string };
+	};
+	records: AttendanceRecord[]; // Who attended
 }
 
 // Student Import from CSV
 interface ImportStudentDTO {
-  studentId: string;  // Roll number
-  firstName: string;
-  lastName: string;
-  email: string;
+	studentId: string; // Roll number
+	firstName: string;
+	lastName: string;
+	email: string;
 }
 ```
 
@@ -737,12 +751,12 @@ interface ImportStudentDTO {
 
 ```javascript
 // Frontend: Connect to WebSocket
-import io from 'socket.io-client';
+import io from "socket.io-client";
 
-const socket = io('http://localhost:5000', {
-  auth: {
-    token: accessToken  // JWT access token
-  }
+const socket = io("http://localhost:5000", {
+	auth: {
+		token: accessToken, // JWT access token
+	},
 });
 
 // Server automatically joins user to rooms:
@@ -830,30 +844,32 @@ socket.on('low_attendance_alert', (event) => {
 ```javascript
 // Example: React hook for WebSocket
 useEffect(() => {
-  const socket = io('http://localhost:5000', {
-    auth: { token: localStorage.getItem('accessToken') }
-  });
+	const socket = io("http://localhost:5000", {
+		auth: { token: localStorage.getItem("accessToken") },
+	});
 
-  socket.on('connect', () => {
-    console.log('Connected to WebSocket');
-  });
+	socket.on("connect", () => {
+		console.log("Connected to WebSocket");
+	});
 
-  socket.on('attendance_marked', (event) => {
-    // Show toast notification
-    toast.info(`Attendance marked for ${event.subjectName}`);
-    // Refresh attendance list
-    refetchAttendance();
-  });
+	socket.on("attendance_marked", (event) => {
+		// Show toast notification
+		toast.info(`Attendance marked for ${event.subjectName}`);
+		// Refresh attendance list
+		refetchAttendance();
+	});
 
-  socket.on('attendance_updated', (event) => {
-    // Update local state
-    updateSubjectAttendance(event.subjectCode, event.stats);
-    if (event.status === 'CRITICAL') {
-      toast.error(`Critical: ${event.newPercentage}% in ${event.subjectName}`);
-    }
-  });
+	socket.on("attendance_updated", (event) => {
+		// Update local state
+		updateSubjectAttendance(event.subjectCode, event.stats);
+		if (event.status === "CRITICAL") {
+			toast.error(
+				`Critical: ${event.newPercentage}% in ${event.subjectName}`
+			);
+		}
+	});
 
-  return () => socket.disconnect();
+	return () => socket.disconnect();
 }, [accessToken]);
 ```
 
@@ -863,63 +879,63 @@ useEffect(() => {
 
 1. **LOW_ATTENDANCE**: Sent when attendance drops below thresholds
 2. **ATTENDANCE_MARKED**: Sent when teacher marks attendance
-3. *(More types can be added)*
+3. _(More types can be added)_
 
 ### Notification Channels
 
 #### 1. Push Notifications (Firebase Cloud Messaging)
 
-- **Trigger**: All notification types
-- **Audience**: Students with registered FCM tokens
-- **Payload**:
-  ```json
-  {
-    "notification": {
-      "title": "Low Attendance Alert",
-      "body": "Warning: 68% attendance in Data Structures"
-    },
-    "data": {
-      "type": "LOW_ATTENDANCE",
-      "subjectCode": "CS101",
-      "percentage": "68.0",
-      "status": "WARNING"
-    }
-  }
-  ```
-- **Multi-device Support**: Users can register multiple FCM tokens (phone + tablet)
+-  **Trigger**: All notification types
+-  **Audience**: Students with registered FCM tokens
+-  **Payload**:
+   ```json
+   {
+   	"notification": {
+   		"title": "Low Attendance Alert",
+   		"body": "Warning: 68% attendance in Data Structures"
+   	},
+   	"data": {
+   		"type": "LOW_ATTENDANCE",
+   		"subjectCode": "CS101",
+   		"percentage": "68.0",
+   		"status": "WARNING"
+   	}
+   }
+   ```
+-  **Multi-device Support**: Users can register multiple FCM tokens (phone + tablet)
 
 #### 2. Email Notifications
 
-- **Trigger**: Only for CRITICAL low attendance (< 65%)
-- **Audience**: Student's registered email
-- **Subject**: "⚠️ Critical Attendance Alert - [Subject Name]"
-- **Content**: HTML email with attendance stats and action items
+-  **Trigger**: Only for CRITICAL low attendance (< 65%)
+-  **Audience**: Student's registered email
+-  **Subject**: "⚠️ Critical Attendance Alert - [Subject Name]"
+-  **Content**: HTML email with attendance stats and action items
 
 ### Frontend: Registering for Push Notifications
 
 ```javascript
 // 1. Get FCM token from Firebase SDK (mobile app)
-import messaging from '@react-native-firebase/messaging';
+import messaging from "@react-native-firebase/messaging";
 
 const fcmToken = await messaging().getToken();
 
 // 2. Register with backend
-await fetch('http://localhost:5000/api/notifications/fcm-token', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    token: fcmToken,
-    deviceId: DeviceInfo.getUniqueId()  // e.g., from react-native-device-info
-  })
+await fetch("http://localhost:5000/api/notifications/fcm-token", {
+	method: "POST",
+	headers: {
+		Authorization: `Bearer ${accessToken}`,
+		"Content-Type": "application/json",
+	},
+	body: JSON.stringify({
+		token: fcmToken,
+		deviceId: DeviceInfo.getUniqueId(), // e.g., from react-native-device-info
+	}),
 });
 
 // 3. Handle incoming notifications
 messaging().onMessage(async (remoteMessage) => {
-  console.log('FCM Message:', remoteMessage);
-  // Show local notification or update UI
+	console.log("FCM Message:", remoteMessage);
+	// Show local notification or update UI
 });
 ```
 
@@ -1090,9 +1106,9 @@ pm2 start dist/index.js --name attendease-backend
 
 ### Deployment Platforms
 
-- **Recommended**: Railway, Render, Fly.io (support Bun)
-- **Database**: Neon (serverless PostgreSQL)
-- **File Storage**: If adding file uploads, use AWS S3 or Cloudinary
+-  **Recommended**: Railway, Render, Fly.io (support Bun)
+-  **Database**: Neon (serverless PostgreSQL)
+-  **File Storage**: If adding file uploads, use AWS S3 or Cloudinary
 
 ### Health Check Endpoint
 
@@ -1110,70 +1126,77 @@ curl http://localhost:5000/
 
 **Problem**: Emails not sending
 **Solution**:
-- Verify Gmail app password (not regular password)
-- Check `.env`: `EMAIL_SECURE=false` for port 587
-- Test email credentials: `bun run test-email` (if you create a test script)
-- Check spam folder
+
+-  Verify Gmail app password (not regular password)
+-  Check `.env`: `EMAIL_SECURE=false` for port 587
+-  Test email credentials: `bun run test-email` (if you create a test script)
+-  Check spam folder
 
 #### 2. Database Connection Errors
 
 **Problem**: `Prisma Client could not connect`
 **Solution**:
-- Verify `DATABASE_URL` in `.env`
-- Check Neon dashboard for database status
-- Ensure `?sslmode=require` is in connection string
-- Run `bun run prisma:generate` after changing schema
+
+-  Verify `DATABASE_URL` in `.env`
+-  Check Neon dashboard for database status
+-  Ensure `?sslmode=require` is in connection string
+-  Run `bun run prisma:generate` after changing schema
 
 #### 3. JWT Token Errors
 
 **Problem**: `Invalid token` or `Token expired`
 **Solution**:
-- Check token expiry settings in `.env`
-- Use refresh token endpoint to get new access token
-- Ensure `Authorization: Bearer <token>` header format
-- Verify secrets match between token generation and verification
+
+-  Check token expiry settings in `.env`
+-  Use refresh token endpoint to get new access token
+-  Ensure `Authorization: Bearer <token>` header format
+-  Verify secrets match between token generation and verification
 
 #### 4. CSV Import Failing
 
 **Problem**: "Validation error" during student import
 **Solution**:
-- Ensure CSV has headers: `studentId,firstName,lastName,email`
-- Use exact column names (case-sensitive)
-- Check for UTF-8 encoding (not UTF-8 BOM)
-- Remove special characters from student IDs
-- Example valid CSV:
-  ```csv
-  studentId,firstName,lastName,email
-  CS2024001,John,Doe,john@example.com
-  ```
+
+-  Ensure CSV has headers: `studentId,firstName,lastName,email`
+-  Use exact column names (case-sensitive)
+-  Check for UTF-8 encoding (not UTF-8 BOM)
+-  Remove special characters from student IDs
+-  Example valid CSV:
+   ```csv
+   studentId,firstName,lastName,email
+   CS2024001,John,Doe,john@example.com
+   ```
 
 #### 5. WebSocket Not Connecting
 
 **Problem**: Real-time notifications not working
 **Solution**:
-- Check CORS settings in `src/app.ts`
-- Ensure client uses correct URL: `http://localhost:5000` (not `/api`)
-- Verify JWT token is passed in `auth.token` during connection
-- Check browser console for Socket.IO errors
+
+-  Check CORS settings in `src/app.ts`
+-  Ensure client uses correct URL: `http://localhost:5000` (not `/api`)
+-  Verify JWT token is passed in `auth.token` during connection
+-  Check browser console for Socket.IO errors
 
 #### 6. Push Notifications Not Received
 
 **Problem**: FCM push not working
 **Solution**:
-- Verify Firebase credentials in `.env`
-- Check FCM token registration: `POST /api/notifications/fcm-token`
-- Ensure Firebase project has FCM enabled
-- Test with Firebase Console → Cloud Messaging → Send test message
-- Check mobile app FCM permissions
+
+-  Verify Firebase credentials in `.env`
+-  Check FCM token registration: `POST /api/notifications/fcm-token`
+-  Ensure Firebase project has FCM enabled
+-  Test with Firebase Console → Cloud Messaging → Send test message
+-  Check mobile app FCM permissions
 
 #### 7. Attendance Stats Showing 0%
 
 **Problem**: Dashboard shows 0 attendance for all subjects
 **Solution**:
-- Verify attendance sessions exist: `GET /api/attendance/sessions`
-- Check enrollment: `GET /api/enrollments/:enrollmentId/students`
-- Ensure student is in the batch enrolled in subject
-- Mark at least one attendance: `POST /api/attendance/sessions/:sessionId/mark`
+
+-  Verify attendance sessions exist: `GET /api/attendance/sessions`
+-  Check enrollment: `GET /api/enrollments/:enrollmentId/students`
+-  Ensure student is in the batch enrolled in subject
+-  Mark at least one attendance: `POST /api/attendance/sessions/:sessionId/mark`
 
 ### Debug Mode
 
@@ -1184,14 +1207,15 @@ NODE_ENV=development  # Enables verbose Winston logs
 ```
 
 Check logs in `logs/` directory:
-- `error.log`: Error-level logs
-- `combined.log`: All logs
+
+-  `error.log`: Error-level logs
+-  `combined.log`: All logs
 
 ### API Testing Tools
 
-- **Postman**: Import collection (create from endpoints above)
-- **Thunder Client** (VS Code extension): Lightweight alternative
-- **curl**: For quick terminal testing
+-  **Postman**: Import collection (create from endpoints above)
+-  **Thunder Client** (VS Code extension): Lightweight alternative
+-  **curl**: For quick terminal testing
 
 ### Database Inspection
 
@@ -1207,16 +1231,16 @@ bun run prisma:studio
 
 ### Frontend Integration Checklist
 
-- [ ] Implement JWT token storage (localStorage/AsyncStorage)
-- [ ] Create axios/fetch interceptor for Authorization headers
-- [ ] Handle 401 errors with automatic token refresh
-- [ ] Set up Socket.IO client with JWT authentication
-- [ ] Implement FCM token registration on app launch
-- [ ] Create notification handlers for WebSocket events
-- [ ] Build UI for attendance stats with color-coded status
-- [ ] Add CSV file picker for student import
-- [ ] Implement form validation matching Zod schemas
-- [ ] Handle loading states and error messages
+-  [ ] Implement JWT token storage (localStorage/AsyncStorage)
+-  [ ] Create axios/fetch interceptor for Authorization headers
+-  [ ] Handle 401 errors with automatic token refresh
+-  [ ] Set up Socket.IO client with JWT authentication
+-  [ ] Implement FCM token registration on app launch
+-  [ ] Create notification handlers for WebSocket events
+-  [ ] Build UI for attendance stats with color-coded status
+-  [ ] Add CSV file picker for student import
+-  [ ] Implement form validation matching Zod schemas
+-  [ ] Handle loading states and error messages
 
 ### Useful Prisma Commands
 
@@ -1239,14 +1263,14 @@ bun run db:push
 
 ### Security Best Practices
 
-- ✅ Never commit `.env` file (add to `.gitignore`)
-- ✅ Use HTTPS in production (not HTTP)
-- ✅ Rotate JWT secrets periodically
-- ✅ Implement rate limiting (already configured)
-- ✅ Validate all user input (Zod schemas handle this)
-- ✅ Use parameterized queries (Prisma prevents SQL injection)
-- ✅ Enable CORS only for trusted origins (update in `src/app.ts`)
-- ✅ Keep dependencies updated: `bun update`
+-  ✅ Never commit `.env` file (add to `.gitignore`)
+-  ✅ Use HTTPS in production (not HTTP)
+-  ✅ Rotate JWT secrets periodically
+-  ✅ Implement rate limiting (already configured)
+-  ✅ Validate all user input (Zod schemas handle this)
+-  ✅ Use parameterized queries (Prisma prevents SQL injection)
+-  ✅ Enable CORS only for trusted origins (update in `src/app.ts`)
+-  ✅ Keep dependencies updated: `bun update`
 
 ## 📄 License
 
