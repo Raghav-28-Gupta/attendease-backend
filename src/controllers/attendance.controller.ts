@@ -55,22 +55,20 @@ export class AttendanceController {
 	 * POST /api/attendance/mark
 	 * Mark attendance for multiple students
 	 */
-	static markAttendance = asyncHandler(
-		async (req: Request, res: Response) => {
-			const teacherUserId = req.user!.userId;
-			const data: MarkAttendanceDTO = req.body;
+	static markAttendance = asyncHandler(async (req: Request, res: Response) => {
+		const teacherUserId = req.user!.userId;
+		const data: MarkAttendanceDTO = req.body;
 
-			const result = await AttendanceService.markAttendance(
-				teacherUserId,
-				data
-			);
+		const result = await AttendanceService.markAttendance(
+			teacherUserId,
+			data
+		);
 
-			res.json({
-				success: true,
-				...result,
-			});
-		}
-	);
+		res.json({
+			success: true,
+			...result,
+		});
+	});
 
 	/**
 	 * PUT /api/attendance/records/:recordId
@@ -97,22 +95,20 @@ export class AttendanceController {
 	 * GET /api/attendance/sessions/:sessionId
 	 * Get session details with all records
 	 */
-	static getSessionById = asyncHandler(
-		async (req: Request, res: Response) => {
-			const { sessionId } = req.params;
-			const teacherUserId = req.user!.userId;
+	static getSessionById = asyncHandler(async (req: Request, res: Response) => {
+		const { sessionId } = req.params;
+		const teacherUserId = req.user!.userId;
 
-			const session = await AttendanceService.getSessionById(
-				sessionId!,
-				teacherUserId
-			);
+		const session = await AttendanceService.getSessionById(
+			sessionId!,
+			teacherUserId
+		);
 
-			res.json({
-				success: true,
-				data: session,
-			});
-		}
-	);
+		res.json({
+			success: true,
+			data: session,
+		});
+	});
 
 	/**
 	 * GET /api/attendance/teacher/sessions
@@ -188,7 +184,7 @@ export class AttendanceController {
 	/**
 	 * GET /api/attendance/students/me/summary
 	 * Get logged-in student's attendance summary across all subjects
-	*/
+	 */
 	static getStudentSummary = asyncHandler(
 		async (req: Request, res: Response) => {
 			const studentUserId = req.user!.userId;
@@ -213,11 +209,10 @@ export class AttendanceController {
 			const { enrollmentId } = req.params;
 			const teacherUserId = req.user!.userId;
 
-			const summary =
-				await AttendanceService.getEnrollmentAttendanceSummary(
-					enrollmentId!,
-					teacherUserId
-				);
+			const summary = await AttendanceService.getEnrollmentAttendanceSummary(
+				enrollmentId!,
+				teacherUserId
+			);
 
 			res.json({
 				success: true,
@@ -244,4 +239,29 @@ export class AttendanceController {
 			...result,
 		});
 	});
+
+	/**
+	 * GET /api/attendance/subjects/:subjectCode/my-attendance
+	 * Get logged-in student's attendance for a specific subject
+	 */
+	static getMyAttendanceBySubject = asyncHandler(
+		async (req: Request, res: Response) => {
+			const studentUserId = req.user!.userId;
+			const { subjectCode } = req.params;
+
+			if (!subjectCode) {
+				throw ApiError.badRequest("Subject code is required");
+			}
+
+			const data = await AttendanceService.getMyAttendanceBySubjectCode(
+				studentUserId,
+				subjectCode
+			);
+
+			res.json({
+				success: true,
+				data,
+			});
+		}
+	);
 }

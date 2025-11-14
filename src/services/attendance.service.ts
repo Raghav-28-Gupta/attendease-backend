@@ -956,7 +956,6 @@ export class AttendanceService {
 		};
 	}
 
-
 	static async getStudentAttendanceSummary(studentUserId: string): Promise<{
 		student: {
 			studentId: string;
@@ -1056,7 +1055,149 @@ export class AttendanceService {
 		};
 	}
 
-	// ...existing code...
+	/**
+	 * Get logged-in student's attendance for a specific subject by subject code
+	 */
+	static async getMyAttendanceBySubjectCode(
+		studentUserId: string,
+		subjectCode: string
+	): Promise<{
+		subject: {
+			code: string;
+			name: string;
+			semester: string;
+		};
+		batch: {
+			code: string;
+			name: string;
+		};
+		teacher: {
+			firstName: string;
+			lastName: string;
+			employeeId: string;
+		};
+		stats: AttendanceStatsDTO;
+		recentSessions: {
+			id: string;
+			date: Date;
+			startTime: string;
+			endTime: string;
+			status: AttendanceStatus | null; // Student's attendance status for this session
+			markedAt: Date | null;
+		}[];
+	}> {
+		// 1. Get student profile
+		const student = await prisma.student.findUnique({
+			where: { userId: studentUserId },
+			include: {
+				batch: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+					},
+				},
+			},
+		});
+
+		if (!student) {
+			throw ApiError.notFound("Student profile not found");
+		}
+
+		if (!student.batch) {
+			throw ApiError.notFound("You are not assigned to any batch");
+		}
+
+		// 2. Find the subject by code
+		const subject = await prisma.subject.findUnique({
+			where: { code: subjectCode.toUpperCase() },
+			select: {
+				id: true,
+				code: true,
+				name: true,
+				semester: true,
+			},
+		});
+
+		if (!subject) {
+			throw ApiError.notFound(`Subject with code ${subjectCode} not found`);
+		}
+
+		// 3. Find the enrollment (subject-batch-teacher link)
+		const enrollment = await prisma.subjectEnrollment.findFirst({
+			where: {
+				subjectId: subject.id,
+				batchId: student.batch.id,
+				status: "ACTIVE",
+			},
+			include: {
+				teacher: {
+					select: {
+						firstName: true,
+						lastName: true,
+						employeeId: true,
+					},
+				},
+			},
+		});
+
+		if (!enrollment) {
+			throw ApiError.notFound(
+				`Your batch is not enrolled in ${subject.code} (${subject.name})`
+			);
+		}
+
+		// 4. Get attendance stats
+		const stats = await this.getStudentAttendanceStats(
+			student.id,
+			enrollment.id
+		);
+
+		// 5. Get recent sessions with student's attendance status
+		const sessions = await prisma.attendanceSession.findMany({
+			where: { subjectEnrollmentId: enrollment.id },
+			select: {
+				id: true,
+				date: true,
+				startTime: true,
+				endTime: true,
+				records: {
+					where: { studentId: student.id },
+					select: {
+						status: true,
+						markedAt: true,
+					},
+				},
+			},
+			orderBy: { date: "desc" },
+			take: 10, // Last 10 sessions
+		});
+
+		const recentSessions = sessions.map((session) => ({
+			id: session.id,
+			date: session.date,
+			startTime: session.startTime,
+			endTime: session.endTime,
+			status: session.records[0]?.status || null,
+			markedAt: session.records[0]?.markedAt || null,
+		}));
+
+		return {
+			subject: {
+				code: subject.code,
+				name: subject.name,
+				semester: subject.semester,
+			},
+			batch: {
+				code: student.batch.code,
+				name: student.batch.name,
+			},
+			teacher: enrollment.teacher,
+			stats,
+			recentSessions,
+		};
+	}
+
 
 	static async deleteSession(sessionId: string, teacherUserId: string) {
 		// ... existing code unchanged ...

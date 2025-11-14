@@ -10,6 +10,7 @@ import {
 	attendanceRecordIdSchema,
 	getStudentAttendanceSchema,
 	getEnrollmentAttendanceSchema,
+	getMyAttendanceBySubjectSchema,
 } from "@utils/validators";
 
 const router = Router();
@@ -127,6 +128,17 @@ router.get(
 	"/students/:studentId/stats",
 	validate(getStudentAttendanceSchema),
 	AttendanceController.getStudentStats
+);
+
+/**
+ * GET /api/attendance/subjects/:subjectCode/my-attendance
+ * Get logged-in student's attendance for a specific subject by subject code
+ */
+router.get(
+    "/subjects/:subjectCode/my-attendance",
+    authorize("STUDENT"), // Students only
+    validate(getMyAttendanceBySubjectSchema),
+    AttendanceController.getMyAttendanceBySubject
 );
 
 router.get(

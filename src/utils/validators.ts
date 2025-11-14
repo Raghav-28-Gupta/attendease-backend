@@ -398,3 +398,9 @@ export const getEnrollmentAttendanceSchema = z.object({
 		endDate: z.string().datetime().optional(),
 	}),
 });
+
+export const getMyAttendanceBySubjectSchema = z.object({
+    params: z.object({
+        subjectCode: z.string().min(1, "Subject code is required"),
+    }),
+});
