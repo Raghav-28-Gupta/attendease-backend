@@ -112,7 +112,7 @@ export class DashboardService {
 						studentCount,
 					},
 					stats: {
-						sessionsHeld: enrollment._count.attendanceSessions,
+						sessionsHeld: sessions.length,
 						averageAttendance:
 							Math.round(averageAttendance * 100) / 100,
 						lastSession,

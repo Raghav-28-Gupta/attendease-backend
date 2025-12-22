@@ -25,8 +25,13 @@ interface LoginResponse {
 		id: string;
 		email: string;
 		role: string;
+		emailVerified: boolean;
 		name: string;
 		identifier: string;
+		phone?: string;          
+		employeeId?: string;     
+		studentId?: string;      
+		department?: string;  
 		batchId?: string;
 		batchCode?: string;
 	};
@@ -270,8 +275,13 @@ export class AuthService {
 				id: user.id,
 				email: user.email,
 				role: user.role,
+				emailVerified: user.emailVerified,
 				name,
 				identifier,
+				phone: user.role === "STUDENT" ? (user.student?.phone ?? undefined) : (user.teacher?.phone ?? undefined),
+				employeeId: user.role === "TEACHER" ? (user.teacher?.employeeId ?? undefined) : undefined,  
+				studentId: user.role === "STUDENT" ? user.student?.studentId : undefined,    
+				department: user.role === "TEACHER" ? (user.teacher?.department ?? undefined) : undefined,  
 				batchId,
 				batchCode,
 			},

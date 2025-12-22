@@ -7,6 +7,7 @@ import {
 	loginSchema,
 	verifyEmailSchema,
 } from "@utils/validators";
+import { authenticate } from "@/middleware/auth";
 
 const router = Router();
 
@@ -36,6 +37,6 @@ router.post(
 );
 
 // POST /api/auth/logout
-router.post("/logout", AuthController.logout);
+router.post("/logout", authenticate, AuthController.logout);
 
 export default router;
