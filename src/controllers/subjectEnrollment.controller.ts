@@ -168,4 +168,20 @@ export class SubjectEnrollmentController {
 			...result,
 		});
 	});
+
+	// In subjectEnrollment.controller.ts
+	static getTeacherEnrollments = asyncHandler(
+	async (req: Request, res: Response) => {
+		const teacherUserId = req.user!.userId;
+
+		const enrollments = 
+			await SubjectEnrollmentService.getTeacherEnrollments(teacherUserId);
+
+		res.json({
+			success: true,
+			count: enrollments.length,
+			data: enrollments,
+		});
+	}
+	);
 }

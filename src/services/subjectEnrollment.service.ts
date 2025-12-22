@@ -4,7 +4,7 @@ import logger from "@utils/logger";
 import type {
 	EnrollBatchesDTO,
 	SubjectEnrollmentWithBatch,
-     UpdateSubjectEnrollmentDTO,
+	UpdateSubjectEnrollmentDTO,
 } from "@local-types/models.types";
 
 export class SubjectEnrollmentService {
@@ -206,7 +206,7 @@ export class SubjectEnrollmentService {
 		);
 
 		const teacher = await prisma.teacher.findUnique({
-            where: { userId: teacherUserId },
+			where: { userId: teacherUserId },
 		});
 
 		if (!teacher) {
@@ -343,5 +343,32 @@ export class SubjectEnrollmentService {
 		return updated;
 	}
 
-	// ...existing code...
+	static async getTeacherEnrollments(teacherUserId: string) {
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) throw ApiError.forbidden("Teacher profile not found");
+
+		return prisma.subjectEnrollment.findMany({
+			where: {
+				teacherId: teacher.id,
+				status: "ACTIVE",
+			},
+			include: {
+				batch: true,
+				subject: true,
+				teacher: {
+					select: {
+						id: true,
+						userId: true,
+						firstName: true,
+						lastName: true,
+						employeeId: true,
+					},
+				},
+			},
+			orderBy: { createdAt: "desc" },
+		});
+	}
 }

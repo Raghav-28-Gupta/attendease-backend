@@ -16,6 +16,16 @@ const router = Router();
 router.use(authenticate);
 
 // ===== PUBLIC (Authenticated) ROUTES =====
+/**
+* GET /api/enrollments
+ * Get all enrollments for authenticated teacher
+ * Teacher-only route
+ */
+router.get(
+    "/",
+    authorize("TEACHER"),
+    SubjectEnrollmentController.getTeacherEnrollments  // New method
+);
 
 /**
  * GET /api/enrollments/batches/:batchId/subjects
