@@ -149,4 +149,100 @@ export class StudentService {
 			})),
 		};
 	}
+
+	/**
+	 * Get student by student ID (roll number)
+	 * Returns student details with attendance stats per subject
+	 */
+	static async getStudentById(studentId: string) {
+		const student = await prisma.student.findUnique({
+			where: { studentId },
+			include: {
+				user: {
+					select: {
+						email: true,
+						createdAt: true,
+					},
+				},
+				batch: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+					},
+				},
+				attendanceRecords: {
+					include: {
+						session: {
+							include: {
+								subjectEnrollment: {
+									select: {
+										id: true,
+										subject: {
+											select: {
+												code: true,
+												name: true,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		});
+
+		if (!student) {
+			throw ApiError.notFound("Student not found");
+		}
+
+		// Calculate attendance stats per subject
+		const enrollments = new Map();
+		student.attendanceRecords.forEach((record) => {
+			const subjectCode = record.session.subjectEnrollment.subject.code;
+			if (!enrollments.has(subjectCode)) {
+				enrollments.set(subjectCode, {
+					subject: record.session.subjectEnrollment.subject,
+					totalSessions: 0,
+					attendedSessions: 0,
+				});
+			}
+			const stats = enrollments.get(subjectCode);
+			stats.totalSessions++;
+			if (record.status === "PRESENT" || record.status === "LATE") {
+				stats.attendedSessions++;
+			}
+		});
+
+		return {
+			id: student.id,
+			studentId: student.studentId,
+			name: `${student.firstName} ${student.lastName}`,
+			email: student.user.email,
+			batch: student.batch,
+			enrollments: Array.from(enrollments.values()).map((stats) => ({
+				subject: stats.subject,
+				stats: {
+					totalSessions: stats.totalSessions,
+					attendedSessions: stats.attendedSessions,
+					percentage:
+						stats.totalSessions > 0
+							? (
+									(stats.attendedSessions / stats.totalSessions) *
+									100
+							  ).toFixed(1)
+							: 0,
+					status:
+						stats.totalSessions === 0
+							? "NO_DATA"
+							: (stats.attendedSessions / stats.totalSessions) * 100 >=
+							  75
+							? "GOOD"
+							: "AT_RISK",
+				},
+			})),
+		};
+	}
 }

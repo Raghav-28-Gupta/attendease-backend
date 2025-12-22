@@ -53,4 +53,24 @@ export class StudentController {
 			data: batchDetails,
 		});
 	});
+
+	 /**
+     * GET /api/students/:studentId
+     * Get student details by ID (with attendance stats)
+     * Teacher-only route
+     */
+	static getStudentById = asyncHandler(async (req: Request, res: Response) => {
+		const { studentId } = req.params;
+
+		if (!studentId) {
+			throw ApiError.badRequest("Student ID is required");
+		}
+
+		const student = await StudentService.getStudentById(studentId);
+
+		res.json({
+			success: true,
+			data: student,
+		});
+	});
 }
