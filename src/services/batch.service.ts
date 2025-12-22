@@ -35,7 +35,11 @@ export class BatchService {
 
 		logger.info(`Batch created: ${data.code}`);
 
-		return batch;
+		return {
+			...batch,
+			academicYear: batch.year,  // Map 'year' to 'academicYear'
+			studentCount: batch._count.students,
+		} as any;
 	}
 
 	/**
@@ -54,7 +58,11 @@ export class BatchService {
 			orderBy: { code: "asc" },
 		});
 
-		return batches;
+		return batches.map(batch => ({
+			...batch,
+			academicYear: batch.year,
+			studentCount: batch._count.students,
+		}));
 	}
 
 	/**
@@ -96,7 +104,11 @@ export class BatchService {
 			throw ApiError.notFound("Batch not found");
 		}
 
-		return batch; 
+		return {
+			...batch,
+			academicYear: batch.year,
+			studentCount: batch._count.students,
+		} as any; 
 	}
 
 	/**
@@ -139,7 +151,11 @@ export class BatchService {
 
 		logger.info(`Batch updated: ${batchId}`);
 
-		return updated;
+		return {
+			...updated,
+			academicYear: updated.year,
+			studentCount: updated._count.students,
+		};
 	}
 
 	/**
