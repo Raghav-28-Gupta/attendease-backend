@@ -468,7 +468,7 @@ export interface TeacherDashboardData {
 			studentCount: number;
 		};
 		stats: {
-			sessionsHeld: number;
+			totalSessions: number;
 			averageAttendance: number;
 			lastSession: Date | null;
 		};
@@ -476,6 +476,7 @@ export interface TeacherDashboardData {
 	stats: {
 		totalEnrollments: number;
 		totalBatchesTeaching: number;
+		totalSubjects: number;
 		totalStudents: number;
 		totalSessions: number;
 		averageAttendance: number;

@@ -29,7 +29,7 @@ export class DashboardService {
 						},
 						batch: {
 							select: {
-                                        id: true,
+								id: true,
 								code: true,
 								name: true,
 							},
@@ -45,7 +45,7 @@ export class DashboardService {
 								},
 							},
 							orderBy: { date: "desc" },
-							take: 1, // Last session
+							take: 5, // Last session
 						},
 						_count: {
 							select: {
@@ -96,12 +96,9 @@ export class DashboardService {
 				});
 
 				const averageAttendance =
-					totalPossible > 0
-						? (totalPresent / totalPossible) * 100
-						: 0;
+					totalPossible > 0 ? (totalPresent / totalPossible) * 100 : 0;
 
-				const lastSession =
-					enrollment.attendanceSessions[0]?.date || null;
+				const lastSession = enrollment.attendanceSessions[0]?.date || null;
 
 				return {
 					id: enrollment.id,
@@ -112,9 +109,8 @@ export class DashboardService {
 						studentCount,
 					},
 					stats: {
-						sessionsHeld: sessions.length,
-						averageAttendance:
-							Math.round(averageAttendance * 100) / 100,
+						totalSessions: sessions.length,
+						averageAttendance: Math.round(averageAttendance * 100) / 100,
 						lastSession,
 					},
 				};
@@ -124,14 +120,17 @@ export class DashboardService {
 		// Calculate overall stats
 		const totalEnrollments = enrollments.length;
 		const totalBatchesTeaching = new Set(
-			enrollments.map((e) => e.batch.code)
+			teacher.subjectEnrollments.map((e) => e.batch.code)
 		).size;
 		const totalStudents = enrollments.reduce(
 			(sum, e) => sum + e.batch.studentCount,
 			0
 		);
+		const totalSubjects = new Set(
+			teacher.subjectEnrollments.map((e) => e.subject.code)
+		).size;
 		const totalSessions = enrollments.reduce(
-			(sum, e) => sum + e.stats.sessionsHeld,
+			(sum, e) => sum + e.stats.totalSessions,
 			0
 		);
 		const averageAttendance =
@@ -143,10 +142,43 @@ export class DashboardService {
 				: 0;
 
 		// Get recent sessions
-		const recentSessions = await AttendanceService.getTeacherSessions(
-			teacherUserId,
-			10
-		);
+		// In getTeacherDashboard(), replace the recentSessions query:
+
+		const recentSessions = await prisma.attendanceSession.findMany({
+			where: {
+				subjectEnrollment: {
+					teacherId: teacher.id,
+				},
+			},
+			include: {
+				subjectEnrollment: {
+					include: {
+						subject: true,
+						batch: true,
+						teacher: {
+							select: {
+								id: true,
+								firstName: true,
+								lastName: true,
+								employeeId: true,
+							},
+						},
+					},
+				},
+				records: {
+					select: {
+						status: true,
+					},
+				},
+				_count: {
+					select: {
+						records: true,
+					},
+				},
+			},
+			orderBy: { date: "desc" },
+			take:5,
+		});
 
 		// Find low attendance students
 		const lowAttendanceStudents: any[] = [];
@@ -188,6 +220,7 @@ export class DashboardService {
 			stats: {
 				totalEnrollments,
 				totalBatchesTeaching,
+				totalSubjects,
 				totalStudents,
 				totalSessions,
 				averageAttendance: Math.round(averageAttendance * 100) / 100,
@@ -264,7 +297,7 @@ export class DashboardService {
 			include: {
 				session: {
 					select: {
-                              id: true,
+						id: true,
 						date: true,
 						startTime: true,
 						endTime: true,
