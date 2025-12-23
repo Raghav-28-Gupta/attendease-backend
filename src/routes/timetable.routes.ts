@@ -12,6 +12,12 @@ const router = Router();
 // Teacher routes
 router.use(authenticate);
 
+router.get(
+    "/teacher",
+    authorize("TEACHER"),
+    TimetableController.getTeacherTimetable
+);
+
 router.post(
 	"/",
 	authorize("TEACHER"),
@@ -31,6 +37,11 @@ router.delete(
 	authorize("TEACHER"),
 	validate(timetableIdSchema),
 	TimetableController.deleteEntry
+);
+
+router.get(
+    "/enrollments/:enrollmentId",
+    TimetableController.getEnrollmentTimetable
 );
 
 export default router;

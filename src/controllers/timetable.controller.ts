@@ -112,9 +112,7 @@ export class TimetableController {
 				throw ApiError.notFound("Student profile not found");
 			}
 
-			const result = await TimetableService.getStudentTimetable(
-				student.id
-			);
+			const result = await TimetableService.getStudentTimetable(student.id);
 
 			res.json({
 				success: true,
@@ -156,7 +154,7 @@ export class TimetableController {
 	);
 
 	/**
-	 * GET /api/teachers/me/timetable
+	 * GET /api/timetable/teacher
 	 * Get logged-in teacher's timetable
 	 * Teacher-only route
 	 */
@@ -176,9 +174,7 @@ export class TimetableController {
 				throw ApiError.notFound("Teacher profile not found");
 			}
 
-			const result = await TimetableService.getTeacherTimetable(
-				teacher.id
-			);
+			const result = await TimetableService.getTeacherTimetable(teacher.id);
 
 			res.json({
 				success: true,
@@ -240,4 +236,24 @@ export class TimetableController {
 			...result,
 		});
 	});
+
+	/**
+	 * GET /api/timetable/enrollments/:enrollmentId
+	 * Get timetable entries for a specific subject enrollment
+	 */
+	static getEnrollmentTimetable = asyncHandler(
+		async (req: Request, res: Response) => {
+			const { enrollmentId } = req.params;
+
+			const entries = await TimetableService.getEnrollmentTimetable(
+				enrollmentId
+			);
+
+			res.json({
+				success: true,
+				count: entries.length,
+				data: entries,
+			});
+		}
+	);
 }

@@ -622,9 +622,7 @@ export class TimetableService {
 			});
 
 			if (overlapping) {
-				throw ApiError.badRequest(
-					"Time slot overlaps with existing entry"
-				);
+				throw ApiError.badRequest("Time slot overlaps with existing entry");
 			}
 		}
 
@@ -725,5 +723,53 @@ export class TimetableService {
 		logger.info(`Timetable entry deleted: ${entryId}`);
 
 		return { message: "Timetable entry deleted successfully" };
+	}
+
+	/**
+	 * Get timetable entries for a specific subject enrollment
+	 */
+	static async getEnrollmentTimetable(
+		enrollmentId: string
+	): Promise<TimetableEntryWithDetails[]> {
+		const entries = await prisma.timetableEntry.findMany({
+			where: {
+				subjectEnrollmentId: enrollmentId,
+			},
+			include: {
+				batch: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+				subjectEnrollment: {
+					select: {
+						id: true,
+						subject: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								semester: true,
+							},
+						},
+						teacher: {
+							select: {
+								id: true,
+								employeeId: true,
+								firstName: true,
+								lastName: true,
+							},
+						},
+						room: true,
+					},
+				},
+			},
+		});
+
+		return entries;
 	}
 }
