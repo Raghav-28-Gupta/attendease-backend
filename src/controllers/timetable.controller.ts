@@ -245,6 +245,10 @@ export class TimetableController {
 		async (req: Request, res: Response) => {
 			const { enrollmentId } = req.params;
 
+			if (!enrollmentId) {
+				throw ApiError.badRequest("Enrollment ID is required");
+			}
+
 			const entries = await TimetableService.getEnrollmentTimetable(
 				enrollmentId
 			);

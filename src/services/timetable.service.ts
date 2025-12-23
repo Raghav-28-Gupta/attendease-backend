@@ -38,6 +38,7 @@ export class TimetableService {
 						id: true,
 						code: true,
 						name: true,
+						year: true,
 					},
 				},
 				subject: {
@@ -45,6 +46,13 @@ export class TimetableService {
 						id: true,
 						code: true,
 						name: true,
+					},
+				},
+				teacher: {
+					select: {
+						id: true,
+						firstName: true,
+						lastName: true,
 					},
 				},
 			},
@@ -126,6 +134,14 @@ export class TimetableService {
 							},
 						},
 						room: true,
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								year: true,
+							},
+						},
 					},
 				},
 			},
@@ -310,6 +326,14 @@ export class TimetableService {
 							},
 						},
 						room: true,
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								year: true, // ✅ ADD THIS
+							},
+						},
 					},
 				},
 			},
@@ -387,6 +411,14 @@ export class TimetableService {
 							},
 						},
 						room: true,
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								year: true, // ✅ ADD THIS
+							},
+						},
 					},
 				},
 			},
@@ -470,6 +502,14 @@ export class TimetableService {
 							},
 						},
 						room: true,
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								year: true, // ✅ ADD THIS
+							},
+						},
 					},
 				},
 			},
@@ -527,6 +567,14 @@ export class TimetableService {
 							},
 						},
 						room: true,
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								year: true, // ✅ ADD THIS
+							},
+						},
 					},
 				},
 			},
@@ -665,6 +713,14 @@ export class TimetableService {
 							},
 						},
 						room: true,
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								year: true, // ✅ ADD THIS
+							},
+						},
 					},
 				},
 			},
@@ -765,6 +821,14 @@ export class TimetableService {
 							},
 						},
 						room: true,
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								year: true, // ✅ ADD THIS
+							},
+						},
 					},
 				},
 			},
