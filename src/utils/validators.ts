@@ -89,7 +89,7 @@ export const createBatchSchema = z.object({
 			.regex(/^[A-Z0-9]+$/i, "Code must be alphanumeric"),
 		name: z.string().min(1, "Batch name is required").max(100),
 		year: z.string().min(1, "Year is required"),
-		department: z.string().min(1, "Department is required").optional(),
+		department: z.string().max(100).nullish(),
 		capacity: z.number().int().positive().optional(),
 		classRoom: z.string().max(50).optional(),
 		description: z.string().max(500).optional(),
@@ -103,6 +103,7 @@ export const updateBatchSchema = z.object({
 	body: z.object({
 		name: z.string().min(1).max(100).optional(),
 		year: z.string().min(1).optional(), 
+		department: z.string().max(100).nullish(),
 		capacity: z.number().int().positive().optional(),
 		classRoom: z.string().max(50).optional(),
 		description: z.string().max(500).optional(),                

@@ -7,6 +7,9 @@ import type {
 } from "@local-types/models.types";
 
 export class SubjectService {
+	static getBatchSubjects(id: string): any {
+		throw new Error("Method not implemented.");
+	}
 	/**
 	 * Create subject (independent entity - no teacher ownership)
 	 */
@@ -111,6 +114,9 @@ export class SubjectService {
 			where: { userId: teacherId },
 			include: {
 				subjectEnrollments: {
+					where: {
+						status: "ACTIVE", // ✅ Only active enrollments
+					},
 					include: {
 						subject: true,
 						batch: {
@@ -377,6 +383,42 @@ export class SubjectService {
 				},
 			},
 			take: 10,
+		});
+
+		return subjects;
+	}
+
+	/**
+	 * Get subjects filtered by department
+	 */
+	static async getSubjectsByDepartment(department: string) {
+		const subjects = await prisma.subject.findMany({
+			where: { department },
+			include: {
+				subjectEnrollments: {
+					include: {
+						batch: {
+							select: {
+								code: true,
+								name: true,
+							},
+						},
+						teacher: {
+							select: {
+								firstName: true,
+								lastName: true,
+								employeeId: true,
+							},
+						},
+					},
+				},
+				_count: {
+					select: {
+						subjectEnrollments: true,
+					},
+				},
+			},
+			orderBy: { code: "asc" },
 		});
 
 		return subjects;

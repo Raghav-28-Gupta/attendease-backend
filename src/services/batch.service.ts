@@ -37,9 +37,50 @@ export class BatchService {
 
 		return {
 			...batch,
-			academicYear: batch.year,  // Map 'year' to 'academicYear'
+			academicYear: batch.year, // Map 'year' to 'academicYear'
 			studentCount: batch._count.students,
 		} as any;
+	}
+
+	/**
+	 * ✅ Get batches for a specific teacher (only batches they teach)
+	 */
+	static async getTeacherBatches(teacherUserId: string) {
+		// Get teacher record
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher profile not found");
+		}
+
+		// Get batches where teacher has active enrollments
+		const batches = await prisma.batch.findMany({
+			where: {
+				subjectEnrollments: {
+					some: {
+						teacherId: teacher.id,
+						status: "ACTIVE",
+					},
+				},
+			},
+			include: {
+				_count: {
+					select: {
+						students: true,
+						subjectEnrollments: true,
+					},
+				},
+			},
+			orderBy: { code: "asc" },
+		});
+
+		return batches.map((batch) => ({
+			...batch,
+			academicYear: batch.year,
+			studentCount: batch._count.students,
+		}));
 	}
 
 	/**
@@ -58,7 +99,7 @@ export class BatchService {
 			orderBy: { code: "asc" },
 		});
 
-		return batches.map(batch => ({
+		return batches.map((batch) => ({
 			...batch,
 			academicYear: batch.year,
 			studentCount: batch._count.students,
@@ -108,7 +149,7 @@ export class BatchService {
 			...batch,
 			academicYear: batch.year,
 			studentCount: batch._count.students,
-		} as any; 
+		} as any;
 	}
 
 	/**
@@ -130,9 +171,7 @@ export class BatchService {
 			});
 
 			if (existing) {
-				throw ApiError.badRequest(
-					`Batch code ${data.code} already exists`
-				);
+				throw ApiError.badRequest(`Batch code ${data.code} already exists`);
 			}
 		}
 

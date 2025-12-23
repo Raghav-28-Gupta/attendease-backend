@@ -6,7 +6,7 @@ import type {
 	CreateSubjectDTO,
 	UpdateSubjectDTO,
 } from "@local-types/models.types";
-
+import prisma from "@/config/database";
 export class SubjectController {
 	/**
 	 * POST /api/subjects
@@ -30,21 +30,47 @@ export class SubjectController {
 	/**
 	 * GET /api/subjects
 	 * Get all subjects (optionally filter by department)
-	 * Public to authenticated users - they can see what subjects exist
+	 * - TEACHER: All subjects in their institution (for management)
+	 * - STUDENT: Only subjects they're enrolled in
+	 * - ADMIN: All subjects
 	 */
-	static getAllSubjects = asyncHandler(
-		async (req: Request, res: Response) => {
-			const { department } = req.query;
+	static getAllSubjects = asyncHandler(async (req: Request, res: Response) => {
+		const { department } = req.query;
+		const userRole = req.user!.role;
+		const userId = req.user!.userId;
 
-			const subjects = await SubjectService.getAllSubjects(department as string | undefined);
+		let subjects;
 
-			res.json({
-				success: true,
-				count: subjects.length,
-				data: subjects,
+		if (userRole === "TEACHER") {
+			// ✅ FIXED: Teachers see ALL subjects (not just ones they teach)
+			// This allows them to manage and enroll subjects
+			subjects = department
+				? await SubjectService.getSubjectsByDepartment(department as string)
+				: await SubjectService.getAllSubjects();
+		} else if (userRole === "STUDENT") {
+			// Students see only subjects their batch is enrolled in
+			const student = await prisma.student.findUnique({
+				where: { userId },
+				include: { batch: true },
 			});
+			if (!student?.batch) {
+				throw ApiError.notFound("You are not assigned to any batch");
+			}
+
+			subjects = await SubjectService.getBatchSubjects(student.batch.id);
+		} else {
+			// Admin sees all subjects
+			subjects = department
+				? await SubjectService.getSubjectsByDepartment(department as string)
+				: await SubjectService.getAllSubjects();
 		}
-	);
+
+		res.json({
+			success: true,
+			count: subjects.length,
+			data: subjects,
+		});
+	});
 
 	/**
 	 * GET /api/subjects/my-subjects
@@ -57,12 +83,12 @@ export class SubjectController {
 
 			// Verify user is actually a teacher (optional - can be done in middleware)
 			if (req.user!.role !== "TEACHER") {
-				throw ApiError.forbidden(
-					"Only teachers can access this endpoint"
-				);
+				throw ApiError.forbidden("Only teachers can access this endpoint");
 			}
 
-			const subjects = await SubjectService.getTeacherSubjects(teacherUserId);
+			const subjects = await SubjectService.getTeacherSubjects(
+				teacherUserId
+			);
 
 			res.json({
 				success: true,
@@ -77,18 +103,16 @@ export class SubjectController {
 	 * Get subject by ID with all enrollments
 	 * Public to authenticated users
 	 */
-	static getSubjectById = asyncHandler(
-		async (req: Request, res: Response) => {
-			const { subjectId } = req.params;
+	static getSubjectById = asyncHandler(async (req: Request, res: Response) => {
+		const { subjectId } = req.params;
 
-			const subject = await SubjectService.getSubjectById(subjectId!);
+		const subject = await SubjectService.getSubjectById(subjectId!);
 
-			res.json({
-				success: true,
-				data: subject,
-			});
-		}
-	);
+		res.json({
+			success: true,
+			data: subject,
+		});
+	});
 
 	/**
 	 * PUT /api/subjects/:subjectId
@@ -145,23 +169,19 @@ export class SubjectController {
 	 * GET /api/subjects/search?q=CS301
 	 * Search subjects by code or name
 	 */
-	static searchSubjects = asyncHandler(
-		async (req: Request, res: Response) => {
-			const { q } = req.query;
+	static searchSubjects = asyncHandler(async (req: Request, res: Response) => {
+		const { q } = req.query;
 
-			if (!q || typeof q !== "string") {
-				throw ApiError.badRequest(
-					'Search query parameter "q" is required'
-				);
-			}
-
-			const subjects = await SubjectService.searchSubjects(q);
-
-			res.json({
-				success: true,
-				count: subjects.length,
-				data: subjects,
-			});
+		if (!q || typeof q !== "string") {
+			throw ApiError.badRequest('Search query parameter "q" is required');
 		}
-	);
+
+		const subjects = await SubjectService.searchSubjects(q);
+
+		res.json({
+			success: true,
+			count: subjects.length,
+			data: subjects,
+		});
+	});
 }
