@@ -497,30 +497,38 @@ export interface StudentDashboardData {
 		studentId: string;
 		firstName: string;
 		lastName: string;
+		email: string;
+		phone?: string | null;
+		batch: {
+			code: string;
+			name: string;
+			academicYear: string;
+		};
 	};
-	batch: {
-		id: string;
-		code: string;
-		name: string;
-		year: string;
-	} | null;
 	subjects: {
-		enrollmentId: string;
-		code: string;
-		name: string;
+		subjectCode: string;
+		subjectName: string;
+		semester?: string;
 		teacherName: string;
-		attendance: AttendanceStatsDTO;
+		stats: {
+			totalSessions: number;
+			present: number;
+			absent: number;
+			late: number;
+			excused: number;
+			percentage: number;
+			status: "GOOD" | "WARNING" | "CRITICAL";
+		};
 	}[];
+	overview: {
+		totalSubjects: number;
+		overallAttendance: number;
+		totalSessions: number;
+		classesAttended: number;
+		lowAttendanceCount: number;
+	};
 	todayClasses: TimetableEntryWithDetails[];
-	recentAttendance: AttendanceRecordWithSession[];
-	alerts: {
-		type: "LOW_ATTENDANCE" | "ABSENT_TODAY" | "NEARING_THRESHOLD";
-		subject: string;
-		message: string;
-		percentage?: number;
-	}[];
 }
-
 
 // API RESPONSE TYPES
 export interface PaginatedResponse<T> {

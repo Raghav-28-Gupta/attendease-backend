@@ -262,144 +262,184 @@ export class DashboardService {
 	static async getStudentDashboard(
 		userId: string
 	): Promise<StudentDashboardData> {
-		const student = await prisma.student.findUnique({
-			where: { userId },
-			include: {
-				batch: {
-					include: {
-						subjectEnrollments: {
-							include: {
-								subject: {
-									select: {
-										code: true,
-										name: true,
+		try {
+			logger.info(`Fetching student dashboard for user: ${userId}`);
+
+			const student = await prisma.student.findUnique({
+				where: { userId },
+				include: {
+					user: {
+						select: {
+							email: true,
+						},
+					},
+					batch: {
+						include: {
+							subjectEnrollments: {
+								where: { status: "ACTIVE" },
+								include: {
+									subject: {
+										select: {
+											code: true,
+											name: true,
+											semester: true,
+										},
 									},
-								},
-								teacher: {
-									select: {
-										firstName: true,
-										lastName: true,
+									teacher: {
+										select: {
+											firstName: true,
+											lastName: true,
+										},
 									},
 								},
 							},
 						},
 					},
 				},
-			},
-		});
-
-		if (!student) {
-			throw ApiError.notFound("Student profile not found");
-		}
-
-		if (!student.batch) {
-			throw ApiError.notFound("Student not assigned to batch");
-		}
-
-		// Calculate attendance for each subject
-		const subjects = await Promise.all(
-			student.batch.subjectEnrollments.map(async (enrollment) => {
-				const stats = await AttendanceService.getStudentAttendanceStats(
-					student.id,
-					enrollment.id
-				);
-
-				return {
-					enrollmentId: enrollment.id,
-					code: enrollment.subject.code,
-					name: enrollment.subject.name,
-					teacherName: `${enrollment.teacher.firstName} ${enrollment.teacher.lastName}`,
-					attendance: stats,
-				};
-			})
-		);
-
-		// Get today's classes
-		const todayClasses = await TimetableService.getTodayClasses(student.id);
-
-		// Get recent attendance records
-		const recentAttendance = await prisma.attendanceRecord.findMany({
-			where: { studentId: student.id },
-			include: {
-				session: {
-					select: {
-						id: true,
-						date: true,
-						startTime: true,
-						endTime: true,
-						subjectEnrollment: {
-							select: {
-								subject: {
-									select: {
-										code: true,
-										name: true,
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			orderBy: {
-				session: { date: "desc" },
-			},
-			take: 10,
-		});
-
-		// Generate alerts
-		const alerts: any[] = [];
-
-		subjects.forEach((subject) => {
-			if (subject.attendance.status === "CRITICAL") {
-				alerts.push({
-					type: "LOW_ATTENDANCE",
-					subject: subject.name,
-					message: `Critical: ${subject.attendance.percentage}% attendance in ${subject.name}`,
-					percentage: subject.attendance.percentage,
-				});
-			} else if (subject.attendance.status === "WARNING") {
-				alerts.push({
-					type: "NEARING_THRESHOLD",
-					subject: subject.name,
-					message: `Warning: ${subject.attendance.percentage}% attendance in ${subject.name}`,
-					percentage: subject.attendance.percentage,
-				});
-			}
-		});
-
-		// Check if absent today
-		const today = new Date().toISOString().split("T")[0];
-		const todayAbsent = recentAttendance.filter(
-			(r) =>
-				r.session.date.toISOString().split("T")[0] === today &&
-				r.status === "ABSENT"
-		);
-
-		todayAbsent.forEach((record) => {
-			alerts.push({
-				type: "ABSENT_TODAY",
-				subject: record.session.subjectEnrollment.subject.name,
-				message: `Marked absent in ${record.session.subjectEnrollment.subject.name} today`,
 			});
-		});
 
-		return {
-			student: {
-				id: student.id,
-				studentId: student.studentId,
-				firstName: student.firstName,
-				lastName: student.lastName,
-			},
-			batch: {
-				id: student.batch.id,
-				code: student.batch.code,
-				name: student.batch.name,
-				year: student.batch.year,
-			},
-			subjects,
-			todayClasses: todayClasses.classes,
-			recentAttendance,
-			alerts,
-		};
+			if (!student) {
+				logger.error(`Student not found for userId: ${userId}`);
+				throw ApiError.notFound("Student profile not found");
+			}
+
+			if (!student.batch) {
+				logger.error(`Student ${student.id} not assigned to batch`);
+				throw ApiError.notFound("Student not assigned to batch");
+			}
+
+			logger.info(
+				`Student ${student.id} has ${student.batch.subjectEnrollments.length} enrollments`
+			);
+
+			// ✅ Calculate attendance for each subject with error handling
+			const subjects = await Promise.all(
+				student.batch.subjectEnrollments.map(async (enrollment) => {
+					try {
+						const stats =
+							await AttendanceService.getStudentAttendanceStats(
+								student.id,
+								enrollment.id
+							);
+
+						return {
+							subjectCode: enrollment.subject.code,
+							subjectName: enrollment.subject.name,
+							semester: enrollment.subject.semester || "N/A",
+							teacherName: `${enrollment.teacher.firstName} ${enrollment.teacher.lastName}`,
+							stats: {
+								totalSessions: stats.totalSessions || 0,
+								present: stats.present || 0,
+								absent: stats.absent || 0,
+								late: stats.late || 0,
+								excused: stats.excused || 0,
+								percentage:
+									Math.round(stats.percentage * 100) / 100 || 0,
+								status:
+									stats.percentage >= 75
+										? "GOOD"
+										: stats.percentage >= 65
+										? "WARNING"
+										: "CRITICAL",
+							},
+						};
+					} catch (error) {
+						logger.error(
+							`Failed to get stats for enrollment ${enrollment.id}:`,
+							error
+						);
+						// Return default stats if there's an error
+						return {
+							subjectCode: enrollment.subject.code,
+							subjectName: enrollment.subject.name,
+							semester: enrollment.subject.semester || "N/A",
+							teacherName: `${enrollment.teacher.firstName} ${enrollment.teacher.lastName}`,
+							stats: {
+								totalSessions: 0,
+								present: 0,
+								absent: 0,
+								late: 0,
+								excused: 0,
+								percentage: 0,
+								status: "CRITICAL" as const,
+							},
+						};
+					}
+				})
+			);
+
+			logger.info(`Processed ${subjects.length} subjects`);
+
+			// ✅ Get today's classes with error handling
+			let todayClassesData: any[] = [];
+			try {
+				const timetableResult = await TimetableService.getTodayClasses(
+					student.id
+				);
+				todayClassesData = timetableResult.classes || [];
+				logger.info(`Found ${todayClassesData.length} classes today`);
+			} catch (error) {
+				logger.error("Failed to fetch today's classes:", error);
+				todayClassesData = [];
+			}
+
+			// ✅ Calculate overview stats
+			const totalSubjects = subjects.length;
+			const totalSessions = subjects.reduce(
+				(sum, s) => sum + (s.stats.totalSessions || 0),
+				0
+			);
+			const classesAttended = subjects.reduce(
+				(sum, s) => sum + (s.stats.present || 0),
+				0
+			);
+			const overallAttendance =
+				totalSessions > 0
+					? Math.round((classesAttended / totalSessions) * 100 * 100) / 100
+					: 0;
+
+			const lowAttendanceCount = subjects.filter(
+				(s) => s.stats.status === "WARNING" || s.stats.status === "CRITICAL"
+			).length;
+
+			logger.info(
+				`Dashboard stats: ${totalSubjects} subjects, ${totalSessions} sessions, ${overallAttendance}% attendance`
+			);
+
+			// ✅ RETURN STRUCTURE
+			const dashboardData: StudentDashboardData = {
+				student: {
+					id: student.id,
+					studentId: student.studentId,
+					firstName: student.user?.firstName || student.firstName || "",
+					lastName: student.user?.lastName || student.lastName || "",
+					email: student.user?.email || "",
+					phone: student.phone || null,
+					batch: {
+						code: student.batch.code,
+						name: student.batch.name,
+						academicYear: student.batch.year,
+					},
+				},
+				subjects: subjects,
+				overview: {
+					totalSubjects: totalSubjects,
+					overallAttendance: overallAttendance,
+					totalSessions: totalSessions,
+					classesAttended: classesAttended,
+					lowAttendanceCount: lowAttendanceCount,
+				},
+				todayClasses: todayClassesData,
+			};
+
+			logger.info(
+				`Student dashboard successfully compiled for ${student.id}`
+			);
+
+			return dashboardData;
+		} catch (error) {
+			logger.error("Error in getStudentDashboard:", error);
+			throw error;
+		}
 	}
 }
