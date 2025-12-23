@@ -11,20 +11,17 @@ export class StudentService {
 		const student = await prisma.student.findUnique({
 			where: { userId },
 			include: {
-				user: {
-					select: {
-						email: true,
-						role: true,
-						createdAt: true,
-					},
-				},
 				batch: {
 					select: {
 						id: true,
 						code: true,
 						name: true,
-						department: true,
 						year: true,
+					},
+				},
+				user: {
+					select: {
+						email: true,
 					},
 				},
 			},
@@ -34,7 +31,22 @@ export class StudentService {
 			throw ApiError.notFound("Student profile not found");
 		}
 
-		return student;
+		// ✅ Return in the format expected by frontend
+		return {
+			id: student.id,
+			studentId: student.studentId,
+			firstName: student.firstName,
+			lastName: student.lastName,
+			email: student.user.email,
+			phone: student.phone,
+			batchId: student.batchId,
+			batch: {
+				code: student.batch.code,
+				name: student.batch.name,
+				academicYear: student.batch.year,
+			},
+			createdAt: student.createdAt,
+		} as StudentWithDetails;
 	}
 
 	/**
@@ -45,44 +57,57 @@ export class StudentService {
 		data: UpdateStudentProfileDTO
 	) {
 		// Verify student exists
-		const student = await prisma.student.findUnique({
+		const existingStudent = await prisma.student.findUnique({
 			where: { userId },
 		});
 
-		if (!student) {
-			throw ApiError.notFound("Student profile not found");
+		if (!existingStudent) {
+			throw ApiError.notFound("Student not found");
 		}
 
-		// Update profile
-		const updated = await prisma.student.update({
-			where: { id: student.id },
+		// Update student
+		const student = await prisma.student.update({
+			where: { id: existingStudent.id },
 			data: {
 				firstName: data.firstName,
 				lastName: data.lastName,
 				phone: data.phone,
 			},
 			include: {
-				user: {
-					select: {
-						email: true,
-						role: true,
-					},
-				},
 				batch: {
 					select: {
-						id: true,
-						code: true,
-						name: true,
-						department: true,
-						year: true,
+					id: true,
+					code: true,
+					name: true,
+					year: true,
+					},
+				},
+				user: {
+					select: {
+					email: true,
 					},
 				},
 			},
 		});
 
-		logger.info(`Student profile updated: ${student.id}`);
+		logger.info(`Profile updated for student: ${student.id}`);
 
-		return updated;
+		// ✅ Return in the format expected by frontend
+		return {
+			id: student.id,
+			studentId: student.studentId,
+			firstName: student.firstName,
+			lastName: student.lastName,
+			email: student.user.email,
+			phone: student.phone,
+			batchId: student.batchId,
+			batch: {
+				code: student.batch.code,
+				name: student.batch.name,
+				academicYear: student.batch.year,
+			},
+			createdAt: student.createdAt,
+		} as StudentWithDetails;
 	}
 
 	/**

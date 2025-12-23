@@ -320,7 +320,7 @@ export const createAttendanceSessionSchema = z.object({
 	body: z
 		.object({
 			subjectEnrollmentId: z.string().uuid("Invalid enrollment ID"),
-			date: z.string().datetime().or(z.date()),
+			date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
 			startTime: z
 				.string()
 				.regex(TIME_REGEX, "Time must be in HH:MM:SS format"),
