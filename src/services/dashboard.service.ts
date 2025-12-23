@@ -119,16 +119,12 @@ export class DashboardService {
 
 		// Calculate overall stats
 		const totalEnrollments = enrollments.length;
-		const totalBatchesTeaching = new Set(
-			teacher.subjectEnrollments.map((e) => e.batch.code)
-		).size;
+		const totalBatchesTeaching = await prisma.batch.count();
 		const totalStudents = enrollments.reduce(
 			(sum, e) => sum + e.batch.studentCount,
 			0
 		);
-		const totalSubjects = new Set(
-			teacher.subjectEnrollments.map((e) => e.subject.code)
-		).size;
+		const totalSubjects = await prisma.subject.count();
 		const totalSessions = enrollments.reduce(
 			(sum, e) => sum + e.stats.totalSessions,
 			0
