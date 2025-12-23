@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import prisma from "@config/database";
-import { generateAccessToken, generateRefreshToken } from "@config/jwt";
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "@config/jwt";
 import { ApiError } from "@utils/ApiError";
 import { EmailService } from "./email.service";
 import logger from "@utils/logger";
@@ -28,10 +28,10 @@ interface LoginResponse {
 		emailVerified: boolean;
 		name: string;
 		identifier: string;
-		phone?: string;          
-		employeeId?: string;     
-		studentId?: string;      
-		department?: string;  
+		phone?: string;
+		employeeId?: string;
+		studentId?: string;
+		department?: string;
 		batchId?: string;
 		batchCode?: string;
 	};
@@ -57,9 +57,7 @@ export class AuthService {
 		// Teacher-specific validation
 		if (role === "TEACHER") {
 			if (!data.employeeId) {
-				throw ApiError.badRequest(
-					"Employee ID is required for teachers"
-				);
+				throw ApiError.badRequest("Employee ID is required for teachers");
 			}
 
 			const existingTeacher = await prisma.teacher.findUnique({
@@ -133,10 +131,7 @@ export class AuthService {
 	/**
 	 * User login - BOTH teachers and students
 	 */
-	static async login(
-		email: string,
-		password: string
-	): Promise<LoginResponse> {
+	static async login(email: string, password: string): Promise<LoginResponse> {
 		// Find user with profile and batch info
 		const user = await prisma.user.findUnique({
 			where: { email },
@@ -249,9 +244,7 @@ export class AuthService {
 						{
 							userId: user.id,
 							createdAt: {
-								lt: new Date(
-									Date.now() - 30 * 24 * 60 * 60 * 1000
-								),
+								lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
 							},
 						}, // Older than 30 days
 					],
@@ -278,10 +271,20 @@ export class AuthService {
 				emailVerified: user.emailVerified,
 				name,
 				identifier,
-				phone: user.role === "STUDENT" ? (user.student?.phone ?? undefined) : (user.teacher?.phone ?? undefined),
-				employeeId: user.role === "TEACHER" ? (user.teacher?.employeeId ?? undefined) : undefined,  
-				studentId: user.role === "STUDENT" ? user.student?.studentId : undefined,    
-				department: user.role === "TEACHER" ? (user.teacher?.department ?? undefined) : undefined,  
+				phone:
+					user.role === "STUDENT"
+						? user.student?.phone ?? undefined
+						: user.teacher?.phone ?? undefined,
+				employeeId:
+					user.role === "TEACHER"
+						? user.teacher?.employeeId ?? undefined
+						: undefined,
+				studentId:
+					user.role === "STUDENT" ? user.student?.studentId : undefined,
+				department:
+					user.role === "TEACHER"
+						? user.teacher?.department ?? undefined
+						: undefined,
 				batchId,
 				batchCode,
 			},
@@ -337,15 +340,12 @@ export class AuthService {
 		if (!user) {
 			// Don't reveal if email exists (security)
 			return {
-				message:
-					"If that email exists, a verification link has been sent.",
+				message: "If that email exists, a verification link has been sent.",
 			};
 		}
 
 		if (user.emailVerified) {
-			throw ApiError.badRequest(
-				"Email is already verified. Please login."
-			);
+			throw ApiError.badRequest("Email is already verified. Please login.");
 		}
 
 		// Generate new token
@@ -391,5 +391,49 @@ export class AuthService {
 		return {
 			message: "Logged out successfully",
 		};
+	}
+
+	// ...existing code...
+
+	/**
+	 * Refresh access token using refresh token
+	 */
+	static async refreshToken(refreshToken: string) {
+		try {
+			const decoded = verifyRefreshToken(refreshToken);
+
+			const storedToken = await prisma.refreshToken.findFirst({
+				where: {
+					userId: decoded.userId,
+					token: refreshToken,
+					expiresAt: { gt: new Date() },
+				},
+			});
+
+			if (!storedToken) {
+				throw ApiError.unauthorized("Invalid or expired refresh token");
+			}
+
+			const user = await prisma.user.findUnique({
+				where: { id: decoded.userId },
+			});
+
+			if (!user) {
+				throw ApiError.unauthorized("User not found");
+			}
+
+			const accessToken = generateAccessToken({
+				userId: user.id,
+				email: user.email,
+				role: user.role,
+			});
+
+			return {
+				accessToken,
+				refreshToken, // Return same refresh token or generate new one if needed
+			};
+		} catch (error) {
+			throw ApiError.unauthorized("Invalid or expired refresh token");
+		}
 	}
 }

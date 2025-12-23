@@ -46,7 +46,18 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 				return next(new Error("Authentication token required"));
 			}
 
-			const decoded = verifyAccessToken(token);
+			let decoded;
+			try {
+				decoded = verifyAccessToken(token);
+			} catch (err) {
+				// ✅ Check if token is expired
+				if (err instanceof Error && err.name === 'TokenExpiredError') {
+					logger.warn(`Expired token for socket connection`);
+					return next(new Error("Token expired - please refresh"));
+				}
+				logger.error("Token verification failed:", err);
+				return next(new Error("Invalid token"));
+			}
 
 			if (!decoded) {
 				return next(new Error("Invalid token"));
@@ -110,6 +121,24 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 				);
 			}
 		}
+
+		socket.on("join-room", (data: { room: string }) => {
+			try {
+				socket.join(data.room);
+				logger.info(`Socket ${socket.id} joined room: ${data.room}`);
+			} catch (error) {
+				logger.error(`Failed to join room ${data.room}:`, error);
+			}
+		});
+
+		socket.on("leave-room", (data: { room: string }) => {
+			try {
+				socket.leave(data.room);
+				logger.info(`Socket ${socket.id} left room: ${data.room}`);
+			} catch (error) {
+				logger.error(`Failed to leave room ${data.room}:`, error);
+			}
+		});
 
 		// Disconnect handler
 		socket.on("disconnect", () => {

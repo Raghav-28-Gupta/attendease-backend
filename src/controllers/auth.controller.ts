@@ -73,4 +73,17 @@ export class AuthController {
 			...result,
 		});
 	});
+
+	/**
+     * POST /api/auth/refresh-token
+     */
+	static refreshToken = asyncHandler(async (req: Request, res: Response) => {
+		const { refreshToken } = req.body;
+		const result = await AuthService.refreshToken(refreshToken);
+
+		res.json({
+			success: true,
+			...result,
+		});
+	});
 }

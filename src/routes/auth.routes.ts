@@ -6,6 +6,7 @@ import {
 	signupSchema,
 	loginSchema,
 	verifyEmailSchema,
+	refreshTokenSchema,
 } from "@utils/validators";
 import { authenticate } from "@/middleware/auth";
 
@@ -38,5 +39,12 @@ router.post(
 
 // POST /api/auth/logout
 router.post("/logout", authenticate, AuthController.logout);
+
+// POST /api/auth/refresh-token
+router.post(
+    "/refresh-token",
+    validate(refreshTokenSchema),
+    AuthController.refreshToken
+);
 
 export default router;
