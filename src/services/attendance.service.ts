@@ -781,7 +781,10 @@ export class AttendanceService {
 
 		return sessions.map((session) => ({
 			...session,
-			type: session.type || "REGULAR", // Ensure type is never null
+			type: session.type ?? "REGULAR", // Ensure type is never null
+			_count: {
+				records: session._count.records,
+			},
 		}));
 	}
 
