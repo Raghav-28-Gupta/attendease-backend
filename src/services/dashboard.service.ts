@@ -313,58 +313,29 @@ export class DashboardService {
 			);
 
 			// ✅ Calculate attendance for each subject with error handling
+
 			const subjects = await Promise.all(
 				student.batch.subjectEnrollments.map(async (enrollment) => {
-					try {
-						const stats =
-							await AttendanceService.getStudentAttendanceStats(
-								student.id,
-								enrollment.id
-							);
+					const stats = await AttendanceService.getStudentAttendanceStats(
+						student.id,
+						enrollment.id
+					);
 
-						return {
-							subjectCode: enrollment.subject.code,
-							subjectName: enrollment.subject.name,
-							semester: enrollment.subject.semester || "N/A",
-							teacherName: `${enrollment.teacher.firstName} ${enrollment.teacher.lastName}`,
-							stats: {
-								totalSessions: stats.totalSessions || 0,
-								present: stats.present || 0,
-								absent: stats.absent || 0,
-								late: stats.late || 0,
-								excused: stats.excused || 0,
-								percentage:
-									Math.round(stats.percentage * 100) / 100 || 0,
-								status:
-									stats.percentage >= 75
-										? "GOOD"
-										: stats.percentage >= 65
-										? "WARNING"
-										: "CRITICAL",
-							},
-						};
-					} catch (error) {
-						logger.error(
-							`Failed to get stats for enrollment ${enrollment.id}:`,
-							error
-						);
-						// Return default stats if there's an error
-						return {
-							subjectCode: enrollment.subject.code,
-							subjectName: enrollment.subject.name,
-							semester: enrollment.subject.semester || "N/A",
-							teacherName: `${enrollment.teacher.firstName} ${enrollment.teacher.lastName}`,
-							stats: {
-								totalSessions: 0,
-								present: 0,
-								absent: 0,
-								late: 0,
-								excused: 0,
-								percentage: 0,
-								status: "CRITICAL" as const,
-							},
-						};
-					}
+					return {
+						subjectCode: enrollment.subject.code,
+						subjectName: enrollment.subject.name,
+						semester: enrollment.subject.semester || "N/A",
+						teacherName: `${enrollment.teacher.firstName} ${enrollment.teacher.lastName}`,
+						stats: {
+							totalSessions: stats.totalSessions,
+							present: stats.present,
+							absent: stats.absent,
+							late: stats.late,
+							excused: stats.excused,
+							percentage: Math.round(stats.percentage * 100) / 100,
+							status: stats.status as "GOOD" | "WARNING" | "CRITICAL", // ✅ Cast here
+						},
+					};
 				})
 			);
 
@@ -411,8 +382,8 @@ export class DashboardService {
 				student: {
 					id: student.id,
 					studentId: student.studentId,
-					firstName: student.user?.firstName || student.firstName || "",
-					lastName: student.user?.lastName || student.lastName || "",
+					firstName: student.firstName || student.firstName || "",
+					lastName: student.lastName || student.lastName || "",
 					email: student.user?.email || "",
 					phone: student.phone || null,
 					batch: {

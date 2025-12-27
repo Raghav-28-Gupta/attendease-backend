@@ -226,6 +226,16 @@ export interface StudentWithBatch extends Student {
 	};
 }
 
+export interface StudentWithDetails extends Student {
+    batch: {
+        code: string;
+        name: string;
+        academicYear: string;
+    };
+    email: string;
+    createdAt: Date;
+}
+
 export interface UpdateStudentProfileDTO {
 	firstName?: string;
 	lastName?: string;

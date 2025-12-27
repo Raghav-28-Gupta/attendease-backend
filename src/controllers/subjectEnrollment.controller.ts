@@ -43,9 +43,11 @@ export class SubjectEnrollmentController {
 			}
 
 			// Admins can view all enrollments, teachers only their own
-			const teacherUserId = req.user!.role === "TEACHER" ? req.user!.userId : undefined;
+			const teacherUserId =
+				req.user!.role === "TEACHER" ? req.user!.userId : undefined;
 
-			const enrollments = await SubjectEnrollmentService.getSubjectEnrollments(
+			const enrollments =
+				await SubjectEnrollmentService.getSubjectEnrollments(
 					subjectId,
 					teacherUserId
 				);
@@ -72,7 +74,9 @@ export class SubjectEnrollmentController {
 				throw ApiError.badRequest("Batch ID is required");
 			}
 
-			const enrollments = await SubjectEnrollmentService.getBatchSubjects(batchId);
+			const enrollments = await SubjectEnrollmentService.getBatchSubjects(
+				batchId
+			);
 
 			res.json({
 				success: true,
@@ -97,7 +101,8 @@ export class SubjectEnrollmentController {
 			}
 
 			// Admins can view any enrollment, teachers only their own
-			const teacherUserId = req.user!.role === "TEACHER" ? req.user!.userId : undefined;
+			const teacherUserId =
+				req.user!.role === "TEACHER" ? req.user!.userId : undefined;
 
 			const enrollment = await SubjectEnrollmentService.getEnrollmentById(
 				enrollmentId,
@@ -157,7 +162,7 @@ export class SubjectEnrollmentController {
 		if (!enrollmentId) {
 			throw ApiError.badRequest("Enrollment ID is required");
 		}
-          
+
 		const result = await SubjectEnrollmentService.unenrollBatch(
 			enrollmentId,
 			teacherUserId!
@@ -171,17 +176,35 @@ export class SubjectEnrollmentController {
 
 	// In subjectEnrollment.controller.ts
 	static getTeacherEnrollments = asyncHandler(
-	async (req: Request, res: Response) => {
-		const teacherUserId = req.user!.userId;
+		async (req: Request, res: Response) => {
+			const teacherUserId = req.user!.userId;
 
-		const enrollments = 
-			await SubjectEnrollmentService.getTeacherEnrollments(teacherUserId);
+			const enrollments =
+				await SubjectEnrollmentService.getTeacherEnrollments(teacherUserId);
 
-		res.json({
+			res.json({
+				success: true,
+				count: enrollments.length,
+				data: enrollments,
+			});
+		}
+	);
+
+	/**
+	 * Get students in a specific enrollment
+	 */
+	static async getEnrollmentStudents(
+		req: Request,
+		res: Response
+	): Promise<void> {
+		const { enrollmentId } = req.params;
+		
+		// @ts-ignore
+		const students = await SubjectEnrollmentService.getEnrollmentStudents(enrollmentId);
+
+		res.status(200).json({
 			success: true,
-			count: enrollments.length,
-			data: enrollments,
+			data: students,
 		});
 	}
-	);
 }

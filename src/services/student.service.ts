@@ -1,7 +1,10 @@
 import prisma from "@config/database";
 import { ApiError } from "@utils/ApiError";
 import logger from "@utils/logger";
-import type { UpdateStudentProfileDTO } from "@local-types/models.types";
+import type {
+	StudentWithDetails,
+	UpdateStudentProfileDTO,
+} from "@local-types/models.types";
 
 export class StudentService {
 	/**
@@ -29,6 +32,11 @@ export class StudentService {
 
 		if (!student) {
 			throw ApiError.notFound("Student profile not found");
+		}
+
+		// Ensure batch exists before accessing its fields
+		if (!student.batch) {
+			throw ApiError.notFound("Student is not assigned to any batch");
 		}
 
 		// ✅ Return in the format expected by frontend
@@ -76,19 +84,24 @@ export class StudentService {
 			include: {
 				batch: {
 					select: {
-					id: true,
-					code: true,
-					name: true,
-					year: true,
+						id: true,
+						code: true,
+						name: true,
+						year: true,
 					},
 				},
 				user: {
 					select: {
-					email: true,
+						email: true,
 					},
 				},
 			},
 		});
+
+		// Ensure batch exists before accessing its fields
+		if (!student.batch) {
+			throw ApiError.notFound("Student is not assigned to any batch");
+		}
 
 		logger.info(`Profile updated for student: ${student.id}`);
 

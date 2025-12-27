@@ -423,4 +423,35 @@ export class SubjectEnrollmentService {
 			orderBy: { createdAt: "desc" },
 		});
 	}
+
+	/**
+	 * Get students in a specific enrollment (batch)
+	 */
+	static async getEnrollmentStudents(enrollmentId: string) {
+		const enrollment = await prisma.subjectEnrollment.findUnique({
+			where: { id: enrollmentId },
+			include: { batch: true },
+		});
+
+		if (!enrollment) {
+			throw ApiError.notFound("Enrollment not found");
+		}
+
+		const students = await prisma.student.findMany({
+			where: { batchId: enrollment.batchId },
+			select: {
+				id: true,
+				studentId: true,
+				firstName: true,
+				lastName: true,
+				// @ts-ignore
+				email: true,
+				phone: true,
+				batchId: true,
+			},
+			orderBy: { studentId: "asc" },
+		});
+
+		return students;
+	}
 }

@@ -9,6 +9,7 @@ import {
 	subjectIdSchema,
 	batchIdSchema,
 } from "@utils/validators";
+import { asyncHandler } from "@/utils/asyncHandler";
 
 const router = Router();
 
@@ -96,6 +97,16 @@ router.delete(
 	authorize("TEACHER"),
 	validate(subjectEnrollmentIdSchema),
 	SubjectEnrollmentController.unenrollBatch
+);
+
+/**
+ * GET /api/enrollments/:enrollmentId/students
+ * Get all students in a specific enrollment (batch)
+ */
+router.get(
+    "/:enrollmentId/students",
+    authorize("TEACHER"),
+    asyncHandler(SubjectEnrollmentController.getEnrollmentStudents)
 );
 
 export default router;
