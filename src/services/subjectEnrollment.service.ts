@@ -60,8 +60,24 @@ export class SubjectEnrollmentService {
 						semester: semester ?? subject.semester,
 					},
 					include: {
-						batch: true,
-						subject: true,
+						batch: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								department: true,
+								year: true,
+							},
+						},
+						subject: {
+							select: {
+								id: true,
+								code: true,
+								name: true,
+								semester: true,
+								department: true,
+							},
+						},
 						teacher: {
 							select: {
 								id: true,
@@ -123,8 +139,24 @@ export class SubjectEnrollmentService {
 			},
 			include: {
 				batch: {
-					include: {
-						_count: { select: { students: true } },
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+						_count: {
+							select: { students: true },
+						},
+					},
+				},
+				subject: {
+					select: {
+						id: true,
+						code: true,
+						name: true,
+						semester: true,
+						department: true,
 					},
 				},
 				teacher: {
@@ -252,10 +284,12 @@ export class SubjectEnrollmentService {
 						code: true,
 						name: true,
 						department: true,
+						semester: true,
 					},
 				},
 				teacher: {
 					select: {
+						id: true,
 						firstName: true,
 						lastName: true,
 						employeeId: true,
@@ -356,8 +390,26 @@ export class SubjectEnrollmentService {
 				status: "ACTIVE",
 			},
 			include: {
-				batch: true,
-				subject: true,
+				batch: {
+					select: {
+						// ✅ Use select
+						id: true,
+						code: true,
+						name: true,
+						department: true,
+						year: true,
+					},
+				},
+				subject: {
+					select: {
+						// ✅ Use select
+						id: true,
+						code: true,
+						name: true,
+						semester: true,
+						department: true,
+					},
+				},
 				teacher: {
 					select: {
 						id: true,
