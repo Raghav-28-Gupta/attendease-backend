@@ -618,14 +618,30 @@ export class AttendanceService {
 			where: { id: sessionId },
 			include: {
 				subjectEnrollment: {
-					include: {
+					select: {
+						id: true,
 						subject: {
-							select: { code: true, name: true },
+							select: {
+								id: true,
+								code: true,
+								name: true,
+							},
 						},
 						batch: {
-							select: { code: true, name: true },
+							select: {
+								id: true,
+								code: true,
+								name: true,
+							},
 						},
-						teacher: true,
+						teacher: {
+							select: {
+								id: true,
+								firstName: true,
+								lastName: true,
+								employeeId: true,
+							},
+						},
 					},
 				},
 				records: {
@@ -643,6 +659,11 @@ export class AttendanceService {
 						student: { studentId: "asc" },
 					},
 				},
+				_count: {
+					select: {
+						records: true,
+					},
+				},
 			},
 		});
 
@@ -656,7 +677,13 @@ export class AttendanceService {
 			}
 		}
 
-		return session;
+		return {
+			...session,
+			type: session.type ?? "REGULAR",
+			_count: {
+				records: session._count.records,
+			},
+		};
 	}
 
 	static async getTeacherSessions(
