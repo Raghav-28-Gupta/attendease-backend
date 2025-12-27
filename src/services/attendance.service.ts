@@ -718,7 +718,6 @@ export class AttendanceService {
 		enrollmentId: string,
 		teacherUserId: string
 	): Promise<AttendanceSessionWithDetails[]> {
-		// ... existing code unchanged ...
 		const teacher = await prisma.teacher.findUnique({
 			where: { userId: teacherUserId },
 		});
@@ -745,7 +744,8 @@ export class AttendanceService {
 			where: { subjectEnrollmentId: enrollmentId },
 			include: {
 				subjectEnrollment: {
-					include: {
+					select: {
+						id: true,
 						subject: {
 							select: {
 								id: true,
@@ -779,14 +779,16 @@ export class AttendanceService {
 			orderBy: [{ date: "desc" }, { startTime: "desc" }],
 		});
 
-		return sessions;
+		return sessions.map((session) => ({
+			...session,
+			type: session.type || "REGULAR", // Ensure type is never null
+		}));
 	}
 
 	static async getStudentAttendanceStats(
 		studentId: string,
 		subjectEnrollmentId: string
 	): Promise<AttendanceStatsDTO> {
-		// ... existing code unchanged ...
 		const sessions = await prisma.attendanceSession.findMany({
 			where: { subjectEnrollmentId },
 			select: { id: true },
@@ -1197,7 +1199,6 @@ export class AttendanceService {
 			recentSessions,
 		};
 	}
-
 
 	static async deleteSession(sessionId: string, teacherUserId: string) {
 		// ... existing code unchanged ...
