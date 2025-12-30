@@ -117,6 +117,7 @@ model Teacher {
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   subjectEnrollments SubjectEnrollment[] //  FIXED: Subject-batch teaching assignments
   attendanceSessions AttendanceSession[] //  FIXED: Attendance sessions conducted
+  fcmTokens          FCMToken[]          // FCM tokens for push notifications
 
   @@index([employeeId])
   @@index([userId])
@@ -295,15 +296,18 @@ model AttendanceEdit {
 // SUPPORTING MODELS
 model FCMToken {
   id        String  @id @default(uuid())
-  studentId String
+  studentId String?
+  teacherId String?
   token     String  @unique
   deviceId  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacher Teacher? @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
+  @@index([teacherId])
   @@map("fcm_tokens")
 }

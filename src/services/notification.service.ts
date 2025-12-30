@@ -264,4 +264,245 @@ export class NotificationService {
 			},
 		});
 	}
+
+	// ==================== TEACHER NOTIFICATION METHODS ====================
+
+	/**
+	 * Register FCM token for a teacher
+	 */
+	static async registerTeacherFCMToken(
+		teacherUserId: string,
+		token: string,
+		deviceId?: string
+	) {
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher not found");
+		}
+
+		// Check if token already exists
+		const existing = await prisma.fCMToken.findUnique({
+			where: { token },
+		});
+
+		if (existing) {
+			// Update existing token
+			await prisma.fCMToken.update({
+				where: { token },
+				data: {
+					teacherId: teacher.id,
+					studentId: null, // Clear student association if any
+					deviceId,
+					updatedAt: new Date(),
+				},
+			});
+		} else {
+			// Create new token
+			await prisma.fCMToken.create({
+				data: {
+					teacherId: teacher.id,
+					token,
+					deviceId,
+				},
+			});
+		}
+
+		logger.info(`FCM token registered for teacher ${teacher.employeeId}`);
+
+		return { message: "FCM token registered successfully" };
+	}
+
+	/**
+	 * Send push notification to teacher
+	 */
+	static async sendTeacherPushNotification(
+		teacherUserId: string,
+		notification: {
+			title: string;
+			body: string;
+			data?: Record<string, string>;
+		}
+	) {
+		try {
+			const teacher = await prisma.teacher.findUnique({
+				where: { userId: teacherUserId },
+				include: {
+					fcmTokens: true,
+				},
+			});
+
+			if (!teacher || teacher.fcmTokens.length === 0) {
+				logger.warn(`No FCM tokens found for teacher ${teacherUserId}`);
+				return { sent: 0 };
+			}
+
+			const messaging = getMessaging();
+			const tokens = teacher.fcmTokens.map((t) => t.token);
+
+			const message = {
+				notification: {
+					title: notification.title,
+					body: notification.body,
+				},
+				data: notification.data || {},
+				tokens,
+			};
+
+			const response = await messaging.sendEachForMulticast(message);
+
+			logger.info(
+				`Push notifications sent to teacher: ${response.successCount}/${tokens.length} successful`
+			);
+
+			// Clean up invalid tokens
+			if (response.failureCount > 0) {
+				const invalidTokens: string[] = [];
+				response.responses.forEach((resp, idx) => {
+					if (!resp.success && tokens[idx]) {
+						invalidTokens.push(tokens[idx]);
+					}
+				});
+
+				await prisma.fCMToken.deleteMany({
+					where: { token: { in: invalidTokens } },
+				});
+
+				logger.info(`Removed ${invalidTokens.length} invalid FCM tokens`);
+			}
+
+			return {
+				sent: response.successCount,
+				failed: response.failureCount,
+			};
+		} catch (error) {
+			logger.error("Failed to send push notification to teacher:", error);
+			return { sent: 0, failed: 1 };
+		}
+	}
+
+	/**
+	 * Send class reminder notification to teacher
+	 */
+	static async sendClassReminderNotification(
+		teacherUserId: string,
+		data: {
+			enrollmentId: string;
+			subjectCode: string;
+			subjectName: string;
+			batchCode: string;
+			startTime: string;
+			endTime: string;
+		}
+	) {
+		return this.sendTeacherPushNotification(teacherUserId, {
+			title: `📚 Class Reminder: ${data.subjectCode}`,
+			body: `${data.subjectName} for ${data.batchCode} starts at ${data.startTime}. Don't forget to take attendance!`,
+			data: {
+				type: "CLASS_REMINDER",
+				action: "CREATE_SESSION",
+				enrollmentId: data.enrollmentId,
+				subjectCode: data.subjectCode,
+				subjectName: data.subjectName,
+				batchCode: data.batchCode,
+				startTime: data.startTime,
+				endTime: data.endTime,
+			},
+		});
+	}
+
+	/**
+	 * Get today's classes for a teacher (for scheduling reminders)
+	 */
+	static async getTodayClassesForReminder(teacherUserId: string) {
+		const teacher = await prisma.teacher.findUnique({
+			where: { userId: teacherUserId },
+		});
+
+		if (!teacher) {
+			throw ApiError.notFound("Teacher not found");
+		}
+
+		// Get current day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+		const today = new Date();
+		const dayOfWeek = today.getDay();
+		const dayNames = [
+			"SUNDAY",
+			"MONDAY",
+			"TUESDAY",
+			"WEDNESDAY",
+			"THURSDAY",
+			"FRIDAY",
+			"SATURDAY",
+		];
+		const todayDayName = dayNames[dayOfWeek];
+
+		// Skip Sunday
+		if (todayDayName === "SUNDAY") {
+			return { classes: [], message: "No classes on Sunday" };
+		}
+
+		// Get all enrollments for this teacher with timetable entries for today
+		const enrollments = await prisma.subjectEnrollment.findMany({
+			where: {
+				teacherId: teacher.id,
+				status: "ACTIVE",
+			},
+			include: {
+				subject: true,
+				batch: true,
+				timetableEntries: {
+					where: {
+						dayOfWeek: todayDayName,
+					},
+				},
+			},
+		});
+
+		// Get today's date string for checking existing sessions
+		const todayDateString = today.toISOString().split("T")[0];
+
+		// Check for existing sessions today for each enrollment
+		const classes = [];
+
+		for (const enrollment of enrollments) {
+			for (const entry of enrollment.timetableEntries) {
+				// Check if session already exists for this slot
+				const existingSession = await prisma.attendanceSession.findFirst({
+					where: {
+						subjectEnrollmentId: enrollment.id,
+						date: {
+							gte: new Date(`${todayDateString}T00:00:00.000Z`),
+							lt: new Date(`${todayDateString}T23:59:59.999Z`),
+						},
+						startTime: entry.startTime,
+					},
+				});
+
+				classes.push({
+					enrollmentId: enrollment.id,
+					subjectCode: enrollment.subject.code,
+					subjectName: enrollment.subject.name,
+					batchCode: enrollment.batch.code,
+					batchName: enrollment.batch.name,
+					dayOfWeek: entry.dayOfWeek,
+					startTime: entry.startTime,
+					endTime: entry.endTime,
+					room: entry.classRoom,
+					hasExistingSession: !!existingSession,
+				});
+			}
+		}
+
+		// Sort by start time
+		classes.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+		return {
+			date: todayDateString,
+			dayOfWeek: todayDayName,
+			classes,
+		};
+	}
 }

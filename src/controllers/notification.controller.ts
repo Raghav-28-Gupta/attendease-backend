@@ -6,7 +6,7 @@ import { ApiError } from "@utils/ApiError";
 export class NotificationController {
 	/**
 	 * POST /api/notifications/fcm/register
-	 * Register FCM token for push notifications
+	 * Register FCM token for push notifications (Student)
 	 */
 	static registerFCMToken = asyncHandler(
 		async (req: Request, res: Response) => {
@@ -18,6 +18,32 @@ export class NotificationController {
 			}
 
 			const result = await NotificationService.registerFCMToken(
+				userId,
+				token,
+				deviceId
+			);
+
+			res.json({
+				success: true,
+				...result,
+			});
+		}
+	);
+
+	/**
+	 * POST /api/notifications/fcm/teacher/register
+	 * Register FCM token for push notifications (Teacher)
+	 */
+	static registerTeacherFCMToken = asyncHandler(
+		async (req: Request, res: Response) => {
+			const userId = req.user!.userId;
+			const { token, deviceId } = req.body;
+
+			if (!token) {
+				throw ApiError.badRequest("FCM token is required");
+			}
+
+			const result = await NotificationService.registerTeacherFCMToken(
 				userId,
 				token,
 				deviceId
@@ -53,7 +79,7 @@ export class NotificationController {
 
 	/**
 	 * POST /api/notifications/test
-	 * Send test push notification (for debugging)
+	 * Send test push notification (for debugging - Student)
 	 */
 	static sendTestNotification = asyncHandler(
 		async (req: Request, res: Response) => {
@@ -71,6 +97,53 @@ export class NotificationController {
 			res.json({
 				success: true,
 				message: "Test notification sent",
+				...result,
+			});
+		}
+	);
+
+	/**
+	 * POST /api/notifications/teacher/test
+	 * Send test push notification (for debugging - Teacher)
+	 */
+	static sendTeacherTestNotification = asyncHandler(
+		async (req: Request, res: Response) => {
+			const userId = req.user!.userId;
+
+			const result = await NotificationService.sendTeacherPushNotification(
+				userId,
+				{
+					title: "🎉 Test Notification",
+					body: "Your push notifications are working correctly!",
+					data: {
+						type: "TEST",
+						timestamp: new Date().toISOString(),
+					},
+				}
+			);
+
+			res.json({
+				success: true,
+				message: "Test notification sent",
+				...result,
+			});
+		}
+	);
+
+	/**
+	 * GET /api/notifications/teacher/today-classes
+	 * Get today's classes for scheduling reminders
+	 */
+	static getTodayClassesForReminder = asyncHandler(
+		async (req: Request, res: Response) => {
+			const userId = req.user!.userId;
+
+			const result = await NotificationService.getTodayClassesForReminder(
+				userId
+			);
+
+			res.json({
+				success: true,
 				...result,
 			});
 		}

@@ -23,6 +23,8 @@ const unregisterFCMSchema = z.object({
 	}),
 });
 
+// ==================== STUDENT ROUTES ====================
+
 /**
  * POST /api/notifications/fcm/register
  * Register FCM token (students only)
@@ -53,6 +55,39 @@ router.post(
 	"/test",
 	authorize("STUDENT"),
 	NotificationController.sendTestNotification
+);
+
+// ==================== TEACHER ROUTES ====================
+
+/**
+ * POST /api/notifications/fcm/teacher/register
+ * Register FCM token (teachers only)
+ */
+router.post(
+	"/fcm/teacher/register",
+	authorize("TEACHER"),
+	validate(registerFCMSchema),
+	NotificationController.registerTeacherFCMToken
+);
+
+/**
+ * GET /api/notifications/teacher/today-classes
+ * Get today's classes for scheduling reminders
+ */
+router.get(
+	"/teacher/today-classes",
+	authorize("TEACHER"),
+	NotificationController.getTodayClassesForReminder
+);
+
+/**
+ * POST /api/notifications/teacher/test
+ * Send test notification to teacher (for debugging)
+ */
+router.post(
+	"/teacher/test",
+	authorize("TEACHER"),
+	NotificationController.sendTeacherTestNotification
 );
 
 export default router;
