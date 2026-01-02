@@ -227,13 +227,13 @@ export interface StudentWithBatch extends Student {
 }
 
 export interface StudentWithDetails extends Student {
-    batch: {
-        code: string;
-        name: string;
-        academicYear: string;
-    };
-    email: string;
-    createdAt: Date;
+	batch: {
+		code: string;
+		name: string;
+		academicYear: string;
+	};
+	email: string;
+	createdAt: Date;
 }
 
 export interface UpdateStudentProfileDTO {
@@ -397,6 +397,7 @@ export interface SessionWithRecords extends AttendanceSession {
 		};
 	};
 	records: AttendanceRecordWithStudent[];
+	_count: { records: number }; 
 }
 
 // ATTENDANCE RECORD TYPES

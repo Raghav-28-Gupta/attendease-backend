@@ -672,7 +672,12 @@ export class AttendanceService {
 		}
 
 		if (teacherUserId) {
-			if (session.subjectEnrollment.teacher.userId !== teacherUserId) {
+			const teacher = await prisma.teacher.findUnique({
+				where: { userId: teacherUserId },
+				select: { id: true },
+			});
+
+			if (!teacher || session.teacherId !== teacher.id) {
 				throw ApiError.forbidden("You do not have access to this session");
 			}
 		}
