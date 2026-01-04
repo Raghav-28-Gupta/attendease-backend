@@ -148,13 +148,9 @@ export class EmailService {
             `
 				}
             
-            <p style="margin-top: 20px;">
-              <a href="${process.env.FRONTEND_URL}/dashboard" 
-                 style="background-color: #007bff; color: white; padding: 12px 24px; 
-                        text-decoration: none; border-radius: 6px; display: inline-block;">
-                View Full Attendance Report
-              </a>
-            </p>
+            <div style="background-color: #e7f3ff; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center;">
+              <p style="margin: 0; color: #1976d2;">📱 <strong>Open the AttendEase app</strong> to view your full attendance report</p>
+            </div>
           </div>
           
           <div style="margin-top: 20px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
@@ -264,13 +260,9 @@ export class EmailService {
 				}
           </div>
           
-          <p style="text-align: center; margin-top: 20px;">
-            <a href="${process.env.FRONTEND_URL}/dashboard" 
-               style="background-color: #007bff; color: white; padding: 12px 24px; 
-                      text-decoration: none; border-radius: 6px; display: inline-block;">
-              View Dashboard
-            </a>
-          </p>
+          <div style="background-color: #e7f3ff; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center;">
+            <p style="margin: 0; color: #1976d2;">📱 <strong>Open the AttendEase app</strong> to view your dashboard</p>
+          </div>
           
           <p style="color: #666; font-size: 12px; text-align: center; margin-top: 30px;">
             AttendEase - Automated Attendance Management
@@ -371,13 +363,9 @@ export class EmailService {
 						: ""
 				}
           
-          <p style="text-align: center; margin-top: 20px;">
-            <a href="${process.env.FRONTEND_URL}/dashboard" 
-               style="background-color: #007bff; color: white; padding: 12px 24px; 
-                      text-decoration: none; border-radius: 6px; display: inline-block;">
-              View Full Report
-            </a>
-          </p>
+          <div style="background-color: #e7f3ff; padding: 15px; border-radius: 8px; margin-top: 20px; text-align: center;">
+            <p style="margin: 0; color: #1976d2;">📱 <strong>Open the AttendEase app</strong> to view your full report</p>
+          </div>
         </div>
       `,
 		};

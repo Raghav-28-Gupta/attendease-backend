@@ -299,89 +299,139 @@ export class StudentImportService {
 		verificationToken: string,
 		batchCode: string,
 		batchName: string,
-		subjectName: string, // ✅ Added subject context
-		teacherName: string // ✅ Added teacher context
+		subjectName: string,
+		teacherName: string
 	): Promise<void> {
-		const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-		const loginUrl = `${process.env.FRONTEND_URL}/login`;
+		const verificationUrl = `${process.env.BACKEND_URL}/api/auth/verify-email?token=${verificationToken}`;
 
 		const mailOptions = {
 			from: process.env.EMAIL_FROM,
 			to: email,
-			subject: `Welcome to AttendEase - ${subjectName} (${batchCode})`,
+			subject: `🎓 Welcome to AttendEase - Verify Your Email`,
 			html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2>Welcome to AttendEase, ${firstName}! 🎓</h2>
-        
-        <p>Your teacher <strong>${teacherName}</strong> has enrolled you in <strong>${subjectName}</strong> for batch <strong>${batchName} (${batchCode})</strong>.</p>
-        
-        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin-top: 0;">📝 Your Login Credentials</h3>
-          <table style="width: 100%; border-collapse: collapse;">
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f0f2f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.08);">
+    
+    <!-- Header with gradient -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 50px 40px; text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🎓</div>
+        <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.5px;">Welcome to AttendEase!</h1>
+        <p style="color: rgba(255,255,255,0.85); margin: 12px 0 0 0; font-size: 16px; font-weight: 400;">Your student account is ready</p>
+      </td>
+    </tr>
+
+    <!-- Greeting -->
+    <tr>
+      <td style="padding: 40px 40px 0 40px;">
+        <p style="color: #1a1a2e; font-size: 20px; margin: 0; font-weight: 600;">Hi ${firstName}! 👋</p>
+        <p style="color: #4a5568; font-size: 16px; line-height: 1.7; margin: 16px 0 0 0;">
+          <strong>${teacherName}</strong> has enrolled you in <strong style="color: #667eea;">${subjectName}</strong> 
+          <span style="color: #718096;">(${batchCode})</span>
+        </p>
+      </td>
+    </tr>
+
+    <!-- Credentials Card -->
+    <tr>
+      <td style="padding: 30px 40px;">
+        <div style="background: linear-gradient(145deg, #f7fafc 0%, #edf2f7 100%); border-radius: 16px; padding: 28px; border: 1px solid #e2e8f0;">
+          <table cellpadding="0" cellspacing="0" style="width: 100%;">
             <tr>
-              <td style="padding: 8px 0;"><strong>Student ID:</strong></td>
-              <td style="padding: 8px 0;"><code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px;">${studentId}</code></td>
+              <td colspan="2" style="padding-bottom: 16px;">
+                <span style="font-size: 20px;">🔐</span>
+                <strong style="color: #2d3748; font-size: 18px; margin-left: 8px;">Your Login Credentials</strong>
+              </td>
             </tr>
             <tr>
-              <td style="padding: 8px 0;"><strong>Email:</strong></td>
-              <td style="padding: 8px 0;"><code style="background: #e9ecef; padding: 4px 8px; border-radius: 4px;">${email}</code></td>
+              <td style="padding: 12px 0; color: #718096; font-size: 14px; font-weight: 500; width: 100px;">EMAIL</td>
+              <td style="padding: 12px 0;">
+                <span style="background: #edf2f7; color: #2d3748; padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 600;">${email}</span>
+              </td>
             </tr>
             <tr>
-              <td style="padding: 8px 0;"><strong>Batch:</strong></td>
-              <td style="padding: 8px 0;"><strong>${batchCode}</strong></td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0;"><strong>Subject:</strong></td>
-              <td style="padding: 8px 0;">${subjectName}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0;"><strong>Teacher:</strong></td>
-              <td style="padding: 8px 0;">${teacherName}</td>
-            </tr>
-            <tr>
-              <td style="padding: 8px 0;"><strong>Temporary Password:</strong></td>
-              <td style="padding: 8px 0;"><code style="background: #fff3cd; padding: 4px 8px; border-radius: 4px; font-weight: bold;">${tempPassword}</code></td>
+              <td style="padding: 12px 0; color: #718096; font-size: 14px; font-weight: 500;">PASSWORD</td>
+              <td style="padding: 12px 0;">
+                <span style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #92400e; padding: 8px 14px; border-radius: 8px; font-size: 15px; font-weight: 700; letter-spacing: 0.5px;">${tempPassword}</span>
+              </td>
             </tr>
           </table>
         </div>
-        
-        <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;">
-          <strong>⚠️ Important Security Steps:</strong>
-          <ol style="margin: 10px 0; padding-left: 20px;">
-            <li>Verify your email first (button below)</li>
-            <li>Login with the temporary password</li>
-            <li><strong>Change your password immediately</strong> after first login</li>
-          </ol>
+      </td>
+    </tr>
+
+    <!-- Steps Section -->
+    <tr>
+      <td style="padding: 0 40px 30px 40px;">
+        <div style="background: linear-gradient(145deg, #ebf8ff 0%, #e0f2fe 100%); border-radius: 16px; padding: 28px; border: 1px solid #bae6fd;">
+          <table cellpadding="0" cellspacing="0" style="width: 100%;">
+            <tr>
+              <td colspan="2" style="padding-bottom: 16px;">
+                <span style="font-size: 18px;">🚀</span>
+                <strong style="color: #0369a1; font-size: 16px; margin-left: 8px;">Get Started in 2 Steps</strong>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; vertical-align: top; width: 40px;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-size: 14px; font-weight: 700;">1</div>
+              </td>
+              <td style="padding: 10px 0;">
+                <p style="margin: 0; color: #1e40af; font-size: 15px; font-weight: 600;">Verify your email</p>
+                <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Click the button below to confirm your email</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; vertical-align: top;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-size: 14px; font-weight: 700;">2</div>
+              </td>
+              <td style="padding: 10px 0;">
+                <p style="margin: 0; color: #1e40af; font-size: 15px; font-weight: 600;">Login in the AttendEase app</p>
+                <p style="margin: 4px 0 0 0; color: #64748b; font-size: 13px;">Open the app and use your credentials above</p>
+              </td>
+            </tr>
+          </table>
         </div>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${verificationUrl}" 
-             style="background-color: #28a745; color: white; padding: 14px 28px; 
-                    text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
-            ✅ Verify Email Address
-          </a>
-        </div>
-        
-        <p style="color: #666; font-size: 14px;">Or copy this link:</p>
-        <p style="color: #666; font-size: 12px; word-break: break-all; background: #f8f9fa; padding: 10px; border-radius: 4px;">
-          ${verificationUrl}
+      </td>
+    </tr>
+
+    <!-- CTA Button -->
+    <tr>
+      <td style="padding: 10px 40px 40px 40px; text-align: center;">
+        <a href="${verificationUrl}" 
+           style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+                  color: white; padding: 18px 48px; text-decoration: none; border-radius: 50px; 
+                  font-weight: 700; font-size: 16px; letter-spacing: 0.3px;
+                  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.35);">
+          ✅ Verify My Email Now
+        </a>
+        <p style="color: #94a3b8; font-size: 12px; margin: 20px 0 0 0;">
+          Button not working? Copy this link:<br>
+          <span style="color: #667eea; word-break: break-all; font-size: 11px;">${verificationUrl}</span>
         </p>
-        
-        <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
-        
-        <div style="background-color: #e7f3ff; padding: 15px; border-radius: 6px;">
-          <p style="margin: 0;"><strong>📱 After Email Verification:</strong></p>
-          <p style="margin: 10px 0;">Login at: <a href="${loginUrl}">${loginUrl}</a></p>
-          <p style="margin: 0; font-size: 14px; color: #666;">Use your email and the temporary password above</p>
-        </div>
-        
-        <p style="color: #999; font-size: 12px; margin-top: 30px; text-align: center;">
-          This is an automated email from AttendEase. If you believe this is a mistake, please contact your teacher.
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background: #f8fafc; padding: 24px 40px; text-align: center; border-top: 1px solid #e2e8f0;">
+        <p style="color: #94a3b8; font-size: 12px; margin: 0; line-height: 1.6;">
+          This is an automated email from AttendEase.<br>
+          If you didn't expect this, please contact your teacher.
         </p>
-      </div>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
     `,
 		};
-		
+
 		// @ts-ignore
 		await EmailService.sendEmail(mailOptions);
 	}

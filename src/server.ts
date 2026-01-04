@@ -20,11 +20,9 @@ const startServer = async () => {
 
 		// Start HTTP server with WebSocket support
 		httpServer.listen(PORT, () => {
-			logger.info(`🚀 Server running on http://localhost:${PORT}`);
+			logger.info(`🚀 Server running on ${process.env.BACKEND_URL}`);
 			logger.info(`📡 WebSocket server ready`);
-			logger.info(
-				`📝 Environment: ${process.env.NODE_ENV || "development"}`
-			);
+			logger.info(`📝 Environment: ${process.env.NODE_ENV || "development"}`);
 		});
 	} catch (error) {
 		logger.error("❌ Failed to start server:", error);
