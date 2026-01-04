@@ -41,7 +41,7 @@ export class EmailService {
 		firstName: string,
 		verificationToken: string
 	): Promise<void> {
-		const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+		const verificationUrl = `${process.env.BACKEND_URL}/api/auth/verify-email?token=${verificationToken}`;
 
 		const mailOptions: EmailOptions = {
 			from: process.env.EMAIL_FROM || "noreply@attendease.com",
@@ -70,7 +70,7 @@ export class EmailService {
 	}
 
 	/**
-	 * Send low attendance alert email 
+	 * Send low attendance alert email
 	 */
 	static async sendLowAttendanceAlertEmail(
 		email: string,
@@ -181,7 +181,7 @@ export class EmailService {
 	}
 
 	/**
-	 * Send attendance marked notification email 
+	 * Send attendance marked notification email
 	 */
 	static async sendAttendanceMarkedEmail(
 		email: string,
